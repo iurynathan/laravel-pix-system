@@ -27,17 +27,11 @@ jobs:
         options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
+    # 1. Faz o checkout do código na raiz
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Cache Composer dependencies
-      working-directory: ./backend
-      uses: actions/cache@v3
-      with:
-        path: vendor
-        key: ${{ runner.os }}-php-${{ hashFiles('composer.lock') }}
-        restore-keys: ${{ runner.os }}-php-
-
+    # 2. Configura o PHP
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
@@ -45,37 +39,64 @@ jobs:
         extensions: mbstring, dom, fileinfo, mysql, redis
         coverage: xdebug
 
+    # 3. Cache das dependências do Composer (apontando para o arquivo lock dentro de 'backend')
+    - name: Cache Composer dependencies
+      uses: actions/cache@v3
+      with:
+        path: backend/vendor # O caminho do vendor agora é dentro de backend
+        key: ${{ runner.os }}-php-${{ hashFiles('backend/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    # 4. Instala as dependências do PHP dentro da pasta 'backend'
+    - name: Install PHP dependencies
+      working-directory: ./backend
+      run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+    # 5. Configura o Node.js e o cache do NPM (apontando para o lock file dentro de 'backend')
     - name: Setup Node.js
       uses: actions/setup-node@v3
-      working-directory: ./backend
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: backend/package-lock.json # Aponta para o local correto
 
+    # 6. Instala as dependências do NPM dentro da pasta 'backend'
+    - name: Install NPM dependencies
+      working-directory: ./backend
+      run: npm install
+
+    # 7. Copia o arquivo de ambiente DENTRO da pasta 'backend'
     - name: Copy environment file
+      working-directory: ./backend
       run: cp .env.testing .env
 
-    - name: Install PHP dependencies
-      run: composer install --no-progress --prefer-dist --optimize-autoloader
-
-    - name: Install NPM dependencies
-      run: npm ci
-
+    # 8. Gera a chave da aplicação DENTRO da pasta 'backend'
     - name: Generate application key
+      working-directory: ./backend
       run: php artisan key:generate
 
+    # 9. Roda as migrations DENTRO da pasta 'backend'
     - name: Run database migrations
+      working-directory: ./backend
       run: php artisan migrate --force
 
+    # 10. Roda o build do frontend DENTRO da pasta 'backend'
     - name: Build frontend assets
+      working-directory: ./backend
       run: npm run build
 
+    # 11. Executa os testes DENTRO da pasta 'backend'
     - name: Execute PHP tests
+      working-directory: ./backend
       run: php artisan test --env=testing --coverage-clover coverage.xml
 
+    # 12. Faz o upload da cobertura de testes (o arquivo está em 'backend')
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        file: ./coverage.xml
+        # O token é recomendado para repositórios privados
+        # token: ${{ secrets.CODECOV_TOKEN }} 
+        file: ./backend/coverage.xml # Aponta para o local correto do arquivo
         flags: unittests
         name: codecov-umbrella

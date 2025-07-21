@@ -45,4 +45,31 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function pixPayments(): HasMany
+    {
+        return $this->hasMany(PixPayment::class);
+    }
+
+    // ✅ Business Methods
+    public function getPixStatistics(): array
+    {
+        $stats = $this->pixPayments()
+            ->selectRaw('
+                COUNT(*) as total,
+                SUM(CASE WHEN status = "generated" THEN 1 ELSE 0 END) as generated,
+                SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid,
+                SUM(CASE WHEN status = "expired" THEN 1 ELSE 0 END) as expired,
+                SUM(CASE WHEN status = "paid" THEN amount ELSE 0 END) as total_paid
+            ')
+            ->first();
+
+        return [
+            'total' => $stats->total ?? 0,
+            'generated' => $stats->generated ?? 0,
+            'paid' => $stats->paid ?? 0,
+            'expired' => $stats->expired ?? 0,
+            'total_amount' => $stats->total_paid ?? 0,
+        ];
+    }
 }

@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    working-directory: ./backend
     
     services:
       mysql:
@@ -25,10 +27,6 @@ jobs:
         ports:
           - 6379:6379
         options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
     - name: Checkout code

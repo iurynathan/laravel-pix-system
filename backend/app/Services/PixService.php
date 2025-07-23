@@ -1,48 +1,64 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\PixPayment;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Exception;
+use App\Exceptions\PixPaymentException;
+use Illuminate\Support\Facades\DB;
 
 class PixService
 {
-    public function __construct()
-    {
-    }
-
     /**
-     * Gera uma nova cobrança PIX
+     * Generate a new PIX payment
+     * 
+     * @throws PixPaymentException
      */
     public function generatePixPayment(
-        User $user, 
-        float $amount = 0, 
-        string $description = null
+        User $user,
+        float $amount = 0,
+        ?string $description = null
     ): PixPayment {
-        $pixPayment = PixPayment::create([
-            'user_id' => $user->id,
-            'amount' => $amount,
-            'description' => $description,
-            'status' => 'generated',
-            'expires_at' => Carbon::now()->addMinutes(
-                config('pix.expiration_minutes', 10)
-            )
-        ]);
+        try {
+            return DB::transaction(function () use ($user, $amount, $description) {
+                $pixPayment = PixPayment::create([
+                    'user_id' => $user->id,
+                    'amount' => $amount,
+                    'description' => $description,
+                    'status' => 'generated',
+                    'expires_at' => Carbon::now()->addMinutes(
+                        config('pix.expiration_minutes', 15)
+                    )
+                ]);
+    
+                Log::info('PIX payment generated', [
+                    'user_id' => $user->id,
+                    'pix_id' => $pixPayment->id,
+                    'amount' => $amount
+                ]);
+    
+                return $pixPayment;
+            });
+        } catch (Exception $e) {
+            Log::error('Failed to generate PIX payment', [
+                'user_id' => $user->id,
+                'amount' => $amount,
+                'error' => $e->getMessage(),
+            ]);
 
-        Log::info('PIX payment generated', [
-            'user_id' => $user->id,
-            'pix_id' => $pixPayment->id,
-            'token' => $pixPayment->token,
-            'amount' => $amount
-        ]);
-
-        return $pixPayment;
+            throw new PixPaymentException('Falha ao gerar cobrança PIX: ' . $e->getMessage(), 500, $e);
+        }
     }
 
     /**
-     * ✅ Confirma um pagamento PIX pelo token
+     * Confirm a PIX payment by token
+     *
+     * @return array<string, mixed>
      */
     public function confirmPayment(string $token): array
     {
@@ -61,14 +77,13 @@ class PixService
             
             Log::info('PIX payment expired', [
                 'pix_id' => $pixPayment->id,
-                'token' => $token
             ]);
 
             return [
                 'success' => false,
                 'message' => 'PIX expirado',
                 'status' => 'expired',
-                'pix' => $pixPayment
+                'pix' => $pixPayment->toApiResponse()
             ];
         }
 
@@ -77,52 +92,75 @@ class PixService
                 'success' => true,
                 'message' => 'PIX já foi pago anteriormente',
                 'status' => 'already_paid',
-                'pix' => $pixPayment
+                'pix' => $pixPayment->toApiResponse()
             ];
         }
 
-        $success = $pixPayment->markAsPaid();
-
-        if ($success) {
-            Log::info('PIX payment confirmed', [
+        try {
+            return DB::transaction(function () use ($pixPayment) {
+                $success = $pixPayment->markAsPaid();
+    
+                if ($success) {
+                    Log::info('PIX payment confirmed', [
+                        'pix_id' => $pixPayment->id,
+                        'user_id' => $pixPayment->user_id
+                    ]);
+        
+                    return [
+                        'success' => true,
+                        'message' => 'Pagamento confirmado com sucesso!',
+                        'status' => 'paid',
+                        'pix' => $pixPayment->toApiResponse()
+                    ];
+                }
+    
+                return [
+                    'success' => false,
+                    'message' => 'Erro ao confirmar pagamento',
+                    'status' => 'error'
+                ];
+            });
+        } catch (Exception $e) {
+            Log::error('Failed to confirm PIX payment', [
                 'pix_id' => $pixPayment->id,
                 'token' => $token,
-                'user_id' => $pixPayment->user_id
+                'error' => $e->getMessage(),
             ]);
-
             return [
-                'success' => true,
-                'message' => 'Pagamento confirmado com sucesso!',
-                'status' => 'paid',
-                'pix' => $pixPayment
+                'success' => false,
+                'message' => 'Erro interno ao confirmar pagamento',
+                'status' => 'internal_error'
             ];
         }
-
-        return [
-            'success' => false,
-            'message' => 'Erro ao confirmar pagamento',
-            'status' => 'error'
-        ];
     }
 
     /**
-     * Processa PIX expirados
+     * Process expired PIX payments
      */
     public function processExpiredPixPayments(): int
     {
-        $expiredCount = PixPayment::expired()->count();
-        
-        PixPayment::expired()->update([
-            'status' => 'expired'
-        ]);
-
-        Log::info("Processed {$expiredCount} expired PIX payments");
-
-        return $expiredCount;
+        try {
+            $expiredCount = PixPayment::expired()->count();
+            
+            PixPayment::expired()->update([
+                'status' => 'expired'
+            ]);
+    
+            Log::info("Processed {$expiredCount} expired PIX payments");
+    
+            return $expiredCount;
+        } catch (Exception $e) {
+            Log::error('Failed to process expired PIX payments', [
+                'error' => $e->getMessage(),
+            ]);
+            return 0;
+        }
     }
 
     /**
-     * Gera estatísticas gerais do sistema
+     * Generate system-wide PIX statistics
+     *
+     * @return array<string, mixed>
      */
     public function getSystemStatistics(): array
     {

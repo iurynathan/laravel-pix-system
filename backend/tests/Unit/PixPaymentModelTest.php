@@ -15,10 +15,8 @@ class PixPaymentModelTest extends TestCase
 
     public function test_it_generates_uuid_token_automatically()
     {
-        // Arrange
         $user = User::factory()->create();
 
-        // Act
         $pix = PixPayment::create([
             'user_id' => $user->id,
             'amount' => 100.00,
@@ -34,7 +32,8 @@ class PixPaymentModelTest extends TestCase
     {
         config(['pix.expiration_minutes' => 10]);
         $user = User::factory()->create();
-        $beforeCreation = Carbon::now();
+        
+        Carbon::setTestNow(now());
 
         $pix = PixPayment::create([
             'user_id' => $user->id,
@@ -42,13 +41,9 @@ class PixPaymentModelTest extends TestCase
         ]);
 
         $this->assertNotNull($pix->expires_at);
-        $expectedExpiration = $beforeCreation->addMinutes(10);
-        $this->assertTrue(
-            $pix->expires_at->between(
-                $expectedExpiration->subSeconds(5),
-                $expectedExpiration->addSeconds(5)
-            )
-        );
+        $this->assertEquals(now()->addMinutes(10)->timestamp, $pix->expires_at->timestamp);
+
+        Carbon::setTestNow();
     }
 
     public function test_it_correctly_identifies_expired_pix()
@@ -98,7 +93,7 @@ class PixPaymentModelTest extends TestCase
             'user_id' => $user->id,
             'amount' => 100.00,
             'status' => 'generated',
-            'expires_at' => Carbon::now()->subMinutes(5) // Expirado
+            'expires_at' => Carbon::now()->subMinutes(5)
         ]);
 
         $result = $pix->markAsPaid();
@@ -118,24 +113,25 @@ class PixPaymentModelTest extends TestCase
 
         $qrUrl = $pix->getQrCodeUrl();
 
-        $expectedUrl = route('pix.confirm', ['token' => $pix->token]);
+        $expectedUrl = route('api.pix.qrcode', ['token' => $pix->token]);
         $this->assertEquals($expectedUrl, $qrUrl);
-        $this->assertStringContains("/pix/{$pix->token}", $qrUrl);
+        $this->assertStringContainsString("/api/pix/qrcode/{$pix->token}", $qrUrl);
     }
 
     public function test_it_calculates_remaining_time_correctly()
     {
+        Carbon::setTestNow(now());
         $user = User::factory()->create();
         $pix = PixPayment::create([
             'user_id' => $user->id,
             'amount' => 50.00,
-            'expires_at' => Carbon::now()->addMinutes(5) // 5 minutos no futuro
+            'expires_at' => now()->addMinutes(5)
         ]);
 
         $remainingTime = $pix->getRemainingTime();
-
-        $this->assertGreaterThan(290, $remainingTime); // ~300 seconds
+        $this->assertGreaterThan(290, $remainingTime);
         $this->assertLessThan(310, $remainingTime);
+        Carbon::setTestNow();
     }
 
     public function test_it_returns_zero_remaining_time_for_expired_pix()
@@ -144,11 +140,9 @@ class PixPaymentModelTest extends TestCase
         $pix = PixPayment::create([
             'user_id' => $user->id,
             'amount' => 50.00,
-            'expires_at' => Carbon::now()->subMinutes(5) // Expirado
+            'expires_at' => now()->subMinutes(5)
         ]);
 
-        $remainingTime = $pix->getRemainingTime();
-
-        $this->assertEquals(0, $remainingTime);
+        $this->assertEquals(0, $pix->getRemainingTime());
     }
 }

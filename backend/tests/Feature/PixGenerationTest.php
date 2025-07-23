@@ -65,12 +65,12 @@ class PixGenerationTest extends TestCase
 
         $pixPayment = $this->pixService->generatePixPayment($this->user, 50.00);
 
-        $expectedExpiration = $beforeGeneration->addMinutes(15);
-        $this->assertTrue(
-            $pixPayment->expires_at->between(
-                $expectedExpiration->subSeconds(5),
-                $expectedExpiration->addSeconds(5)
-            )
+        $expectedExpiration = $beforeGeneration->copy()->addMinutes(15);
+        
+        // Verificar se a diferença está dentro de 2 segundos (tolerância para processamento)
+        $actualDifference = abs($expectedExpiration->diffInSeconds($pixPayment->expires_at));
+        $this->assertLessThan(2, $actualDifference, 
+            "Expiration time should be within 2 seconds of expected time. Actual difference: {$actualDifference} seconds"
         );
     }
 
@@ -91,7 +91,7 @@ class PixGenerationTest extends TestCase
 
         $this->assertEquals(3, $this->user->pixPayments()->count());
         
-        $amounts = $this->user->pixPayments()->pluck('amount')->toArray();
+        $amounts = $this->user->pixPayments()->pluck('amount')->map(fn($amount) => (float) $amount)->toArray();
         $this->assertContains(10.00, $amounts);
         $this->assertContains(20.00, $amounts);
         $this->assertContains(30.00, $amounts);

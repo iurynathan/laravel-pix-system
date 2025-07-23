@@ -88,34 +88,47 @@ class PixConfirmationTest extends TestCase
         $this->assertEquals('PIX já foi pago anteriormente', $result['message']);
     }
 
-    public function test_it_can_access_pix_confirmation_via_http()
+    public function test_it_can_confirm_pix_payment_via_api_route()
     {
         $pixPayment = $this->pixService->generatePixPayment($this->user, 25.00);
 
-        $response = $this->get("/pix/{$pixPayment->token}");
+        $response = $this->postJson("/api/pix/confirm/{$pixPayment->token}");
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'success' => true,
+                     'status' => 'paid',
+                 ]);
         
-        $pixPayment->refresh();
-        $this->assertEquals('paid', $pixPayment->status);
+        $this->assertDatabaseHas('pix_payments', [
+            'id' => $pixPayment->id,
+            'status' => 'paid'
+        ]);
     }
 
-    public function test_it_shows_expired_status_when_accessing_expired_pix()
+    public function test_it_allows_public_confirmation_of_any_valid_pix()
     {
-        $pixPayment = PixPayment::create([
-            'user_id' => $this->user->id,
-            'token' => \Illuminate\Support\Str::uuid(),
-            'amount' => 30.00,
-            'status' => 'generated',
-            'expires_at' => Carbon::now()->subMinutes(1)
+        $anotherUser = User::factory()->create();
+        $pixPayment = $this->pixService->generatePixPayment($anotherUser, 50.00);
+
+        $response = $this->postJson("/api/pix/confirm/{$pixPayment->token}");
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'success' => true,
+                     'status' => 'paid',
+                 ]);
+                 
+        $this->assertDatabaseHas('pix_payments', [
+            'id' => $pixPayment->id,
+            'status' => 'paid'
         ]);
+    }
 
-        $response = $this->get("/pix/{$pixPayment->token}");
+    public function test_it_returns_not_found_for_invalid_token_on_confirmation_route()
+    {
+        $response = $this->postJson("/api/pix/confirm/invalid-token");
 
-        $response->assertStatus(200);
-        $response->assertSee('expirado');
-        
-        $pixPayment->refresh();
-        $this->assertEquals('expired', $pixPayment->status);
+        $response->assertStatus(404);
     }
 }

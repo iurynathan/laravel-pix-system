@@ -6,6 +6,8 @@ services:
     container_name: laravel-pix-app
     restart: unless-stopped
     working_dir: /var/www
+    ports:
+      - "8000:8000"
     volumes:
       - ./backend:/var/www
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
@@ -14,12 +16,6 @@ services:
       - redis
     networks:
       - laravel-pix-network
-    environment:
-      - DB_HOST=mysql
-      - DB_DATABASE=laravel_pix
-      - DB_USERNAME=root
-      - DB_PASSWORD=secret
-      - REDIS_HOST=redis
 
   mysql:
     image: mysql:8.0

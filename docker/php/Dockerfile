@@ -37,5 +37,12 @@ COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
 USER laravel
 
-EXPOSE 9000
-CMD ["php-fpm"]
+EXPOSE 8000
+
+# Script para iniciar tanto o servidor quanto php-fpm se necessário
+COPY docker/php/start.sh /usr/local/bin/start.sh
+USER root
+RUN chmod +x /usr/local/bin/start.sh
+USER laravel
+
+CMD ["/usr/local/bin/start.sh"]

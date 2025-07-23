@@ -25,6 +25,8 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 RUN pecl install redis && docker-php-ext-enable redis
 
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 RUN useradd -G www-data,root -u 1000 -d /home/laravel laravel

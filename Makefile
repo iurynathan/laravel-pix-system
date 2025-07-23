@@ -1,4 +1,4 @@
-.PHONY: help setup up down restart logs shell db test fresh seed clear cache
+.PHONY: help setup up down restart logs shell db test fresh seed clear cache test-coverage-xml test-coverage-html coverage-open
 
 # 🎯 Default target
 help:
@@ -80,6 +80,23 @@ test-unit:
 
 test-coverage:
 	docker-compose exec app php artisan test --coverage
+
+test-coverage-xml:
+	docker-compose exec app php artisan test --env=testing --coverage-clover ./coverage.xml
+	@echo "Coverage XML gerado em: backend/coverage.xml"
+
+test-coverage-html:
+	docker-compose exec app php artisan test --env=testing --coverage-html ./coverage-html
+	@echo "Coverage HTML gerado em: backend/coverage-html/index.html"
+
+coverage-open:
+	@if command -v xdg-open > /dev/null; then \
+		xdg-open backend/coverage-html/index.html; \
+	elif command -v open > /dev/null; then \
+		open backend/coverage-html/index.html; \
+	else \
+		echo "Abra manualmente: backend/coverage-html/index.html"; \
+	fi
 
 clear:
 	docker-compose exec app php artisan cache:clear

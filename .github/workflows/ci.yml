@@ -2,9 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ '*' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ '*' ]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -95,8 +96,7 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        # O token é recomendado para repositórios privados
-        # token: ${{ secrets.CODECOV_TOKEN }} 
-        file: ./backend/coverage.xml # Aponta para o local correto do arquivo
+        token: ${{ secrets.CODECOV_TOKEN }} 
+        file: ./backend/coverage.xml
         flags: unittests
         name: codecov-umbrella

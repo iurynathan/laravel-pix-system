@@ -12,6 +12,7 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
     coverage: {
       reporter: ['text', 'html', 'json'],
+      reportsDirectory: './coverage',
       exclude: [
         'node_modules/',
         'src/test/',

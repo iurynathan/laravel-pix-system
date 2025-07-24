@@ -2,24 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Header } from './Header';
 
-const mockNavigate = vi.fn();
 const mockUseAuth = vi.fn();
-
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-  Link: ({
-    children,
-    to,
-    ...props
-  }: {
-    children: React.ReactNode;
-    to: string;
-  }) => (
-    <a href={to} {...props}>
-      {children}
-    </a>
-  ),
-}));
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -69,6 +52,11 @@ describe('Header Component', () => {
 
     render(<Header />);
 
+    // First open the user menu dropdown
+    const userButton = screen.getByTestId('user-menu-button');
+    fireEvent.click(userButton);
+
+    // Then click the logout button
     const logoutButton = screen.getByText('Sair');
     fireEvent.click(logoutButton);
 
@@ -102,10 +90,14 @@ describe('Header Component', () => {
     const hamburgerButton = screen.getByTestId('mobile-menu-button');
     fireEvent.click(hamburgerButton);
 
+    // Verify mobile menu is visible first
+    const mobileMenu = screen.getByTestId('mobile-menu');
+    expect(mobileMenu).toBeVisible();
+
     const loginLink = screen.getAllByText('Login')[1]; // Mobile menu link
     fireEvent.click(loginLink);
 
-    expect(screen.getByTestId('mobile-menu')).not.toBeVisible();
+    expect(mobileMenu).not.toBeVisible();
   });
 
   it('should show notifications when user is authenticated', () => {
@@ -161,6 +153,10 @@ describe('Header Component', () => {
     const userButton = screen.getByTestId('user-menu-button');
     fireEvent.click(userButton);
 
+    // Verify dropdown is open
+    expect(screen.getByText('Perfil')).toBeInTheDocument();
+
+    // Click outside to close dropdown
     fireEvent.click(document.body);
 
     expect(screen.queryByText('Perfil')).not.toBeInTheDocument();

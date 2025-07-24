@@ -1,20 +1,27 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AuthForm } from './AuthForm';
 
 // Mock do useAuth
+const mockUseAuth = vi.fn();
+
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
-    login: vi.fn(),
-    register: vi.fn(),
-    clearError: vi.fn(),
-    loading: false,
-    error: null,
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 
 describe('AuthForm', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      login: vi.fn(),
+      register: vi.fn(),
+      clearError: vi.fn(),
+      isLoading: false,
+      error: null,
+    });
+  });
+
   it('renders login form by default', () => {
     render(<AuthForm />);
 
@@ -47,32 +54,28 @@ describe('AuthForm', () => {
   });
 
   it('displays loading state', () => {
-    vi.mocked(() => ({
-      useAuth: () => ({
-        login: vi.fn(),
-        register: vi.fn(),
-        clearError: vi.fn(),
-        loading: true,
-        error: null,
-      }),
-    }));
+    mockUseAuth.mockReturnValue({
+      login: vi.fn(),
+      register: vi.fn(),
+      clearError: vi.fn(),
+      isLoading: true,
+      error: null,
+    });
 
     render(<AuthForm />);
 
-    const button = screen.getByRole('button');
-    expect(button).toBeDisabled();
+    const submitButton = screen.getByRole('button', { name: 'Entrar' });
+    expect(submitButton).toBeDisabled();
   });
 
   it('displays error message', () => {
-    vi.mocked(() => ({
-      useAuth: () => ({
-        login: vi.fn(),
-        register: vi.fn(),
-        clearError: vi.fn(),
-        loading: false,
-        error: 'Invalid credentials',
-      }),
-    }));
+    mockUseAuth.mockReturnValue({
+      login: vi.fn(),
+      register: vi.fn(),
+      clearError: vi.fn(),
+      isLoading: false,
+      error: 'Invalid credentials',
+    });
 
     render(<AuthForm />);
 

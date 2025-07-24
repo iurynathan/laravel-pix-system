@@ -24,7 +24,7 @@ describe('AuthLayout Component', () => {
   it('should render children when user is not authenticated', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -40,7 +40,7 @@ describe('AuthLayout Component', () => {
   it('should redirect to dashboard when user is authenticated', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -56,7 +56,7 @@ describe('AuthLayout Component', () => {
   it('should show loading spinner while checking authentication', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: true,
+      isLoading: true,
     });
 
     render(
@@ -73,7 +73,7 @@ describe('AuthLayout Component', () => {
   it('should render layout with proper structure', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -95,7 +95,7 @@ describe('AuthLayout Component', () => {
   it('should render brand section with logo and title', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -114,7 +114,7 @@ describe('AuthLayout Component', () => {
   it('should render main content area with proper styling', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -123,14 +123,15 @@ describe('AuthLayout Component', () => {
       </AuthLayout>
     );
 
-    const contentArea = screen.getByTestId('form-content').closest('div');
+    const formContent = screen.getByTestId('form-content');
+    const contentArea = formContent.parentElement;
     expect(contentArea).toHaveClass('max-w-md', 'w-full', 'space-y-8');
   });
 
   it('should render footer with copyright information', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -148,7 +149,7 @@ describe('AuthLayout Component', () => {
   it('should apply responsive design classes', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -164,7 +165,7 @@ describe('AuthLayout Component', () => {
   it('should render with gradient background', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -184,7 +185,7 @@ describe('AuthLayout Component', () => {
   it('should show security notice', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -204,7 +205,7 @@ describe('AuthLayout Component', () => {
   it('should handle custom title when provided', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(
@@ -219,7 +220,7 @@ describe('AuthLayout Component', () => {
   it('should handle custom subtitle when provided', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      loading: false,
+      isLoading: false,
     });
 
     render(

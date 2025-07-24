@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LoginForm } from './LoginForm';
 
-// Mock do useAuth
 const mockLogin = vi.fn();
 const mockClearError = vi.fn();
 
@@ -11,7 +10,7 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     login: mockLogin,
     clearError: mockClearError,
-    loading: false,
+    isLoading: false,
     error: null,
   }),
 }));
@@ -60,10 +59,17 @@ describe('LoginForm', () => {
     render(<LoginForm />);
 
     await user.type(screen.getByLabelText('Email'), 'invalid-email');
-    await user.click(screen.getByRole('button', { name: 'Entrar' }));
+    await user.type(screen.getByLabelText('Senha'), 'password123');
 
-    expect(
-      screen.getByText('Email deve ter um formato válido')
-    ).toBeInTheDocument();
+    const form = document.querySelector('form');
+    fireEvent.submit(form!);
+
+    expect(mockLogin).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Email deve ter um formato válido')
+      ).toBeInTheDocument();
+    });
   });
 });

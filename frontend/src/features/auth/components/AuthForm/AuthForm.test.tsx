@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { AuthForm } from './AuthForm';
 
 // Mock do useAuth
-vi.mock('../../../../hooks/useAuth', () => ({
+vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     login: vi.fn(),
     register: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock('../../../../hooks/useAuth', () => ({
 describe('AuthForm', () => {
   it('renders login form by default', () => {
     render(<AuthForm />);
-    
+
     expect(screen.getByText('Entrar')).toBeInTheDocument();
     expect(screen.getByText('Não tem conta? Cadastre-se')).toBeInTheDocument();
   });
@@ -58,7 +58,7 @@ describe('AuthForm', () => {
     }));
 
     render(<AuthForm />);
-    
+
     const button = screen.getByRole('button');
     expect(button).toBeDisabled();
   });
@@ -75,7 +75,7 @@ describe('AuthForm', () => {
     }));
 
     render(<AuthForm />);
-    
+
     expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
   });
 });

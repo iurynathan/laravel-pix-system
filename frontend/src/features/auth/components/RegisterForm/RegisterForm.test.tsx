@@ -7,7 +7,7 @@ import { RegisterForm } from './RegisterForm';
 const mockRegister = vi.fn();
 const mockClearError = vi.fn();
 
-vi.mock('../../../../hooks/useAuth', () => ({
+vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     register: mockRegister,
     clearError: mockClearError,
@@ -23,12 +23,14 @@ describe('RegisterForm', () => {
 
   it('renders register form fields', () => {
     render(<RegisterForm />);
-    
+
     expect(screen.getByLabelText('Nome')).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Senha')).toBeInTheDocument();
     expect(screen.getByLabelText('Confirmar Senha')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cadastrar' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Cadastrar' })
+    ).toBeInTheDocument();
   });
 
   it('submits form with valid data', async () => {
@@ -82,6 +84,8 @@ describe('RegisterForm', () => {
     await user.type(screen.getByLabelText('Senha'), '123');
     await user.click(screen.getByRole('button', { name: 'Cadastrar' }));
 
-    expect(screen.getByText('Senha deve ter pelo menos 6 caracteres')).toBeInTheDocument();
+    expect(
+      screen.getByText('Senha deve ter pelo menos 6 caracteres')
+    ).toBeInTheDocument();
   });
 });

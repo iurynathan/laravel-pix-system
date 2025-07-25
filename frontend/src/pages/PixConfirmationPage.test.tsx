@@ -73,7 +73,7 @@ describe('PixConfirmationPage', () => {
   });
 
   it('should show error when token is missing', () => {
-    mockParams.token = undefined as unknown;
+    mockParams.token = undefined as any;
 
     render(
       <MockWrapper>

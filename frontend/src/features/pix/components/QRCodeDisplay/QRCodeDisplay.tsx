@@ -101,7 +101,7 @@ export function QRCodeDisplay({ pix }: QRCodeDisplayProps) {
         {/* PIX Information */}
         <div className="mb-6">
           <div className="text-2xl font-bold text-gray-900 mb-2">
-            {formatCurrency(parseFloat(pix.amount))}
+            {formatCurrency(pix.amount)}
           </div>
           {pix.description && (
             <div className="text-gray-600 mb-2">{pix.description}</div>

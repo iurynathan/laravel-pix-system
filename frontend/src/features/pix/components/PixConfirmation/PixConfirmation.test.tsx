@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { PixConfirmation } from './PixConfirmation';
 import { pixService } from '@/services/pix';
+import type { PixPayment } from '@/types';
 
 vi.mock('@/services/pix', () => ({
   pixService: {
@@ -151,7 +152,12 @@ describe('PixConfirmation', () => {
 
   it('shows loading state during confirmation', async () => {
     let resolvePromise: (value: any) => void;
-    const promise = new Promise(resolve => {
+    const promise = new Promise<{
+      success: boolean;
+      message: string;
+      status: 'paid' | 'expired' | 'already_paid' | 'not_found' | 'error';
+      pix?: PixPayment | undefined;
+    }>(resolve => {
       resolvePromise = resolve;
     });
     mockPixService.confirm.mockReturnValue(promise);
@@ -202,7 +208,12 @@ describe('PixConfirmation', () => {
 
   it('displays helpful information about PIX confirmation', async () => {
     let resolvePromise: (value: any) => void;
-    const promise = new Promise(resolve => {
+    const promise = new Promise<{
+      success: boolean;
+      message: string;
+      status: 'paid' | 'expired' | 'already_paid' | 'not_found' | 'error';
+      pix?: PixPayment | undefined;
+    }>(resolve => {
       resolvePromise = resolve;
     });
     mockPixService.confirm.mockReturnValue(promise);

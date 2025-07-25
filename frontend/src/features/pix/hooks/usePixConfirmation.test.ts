@@ -145,7 +145,7 @@ describe('usePixConfirmation', () => {
 
   it('should set loading state during confirmation', async () => {
     let resolvePromise: (value: any) => void;
-    const promise = new Promise(resolve => {
+    const promise = new Promise<any>(resolve => {
       resolvePromise = resolve;
     });
 

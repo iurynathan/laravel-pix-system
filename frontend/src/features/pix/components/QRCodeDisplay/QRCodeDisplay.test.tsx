@@ -16,7 +16,7 @@ const mockPixData = {
   id: 1,
   user_id: 1,
   token: 'abc123def456',
-  amount: '50.25',
+  amount: 50.25,
   description: 'Teste PIX',
   status: 'generated' as const,
   expires_at: '2025-01-24T10:15:00Z',

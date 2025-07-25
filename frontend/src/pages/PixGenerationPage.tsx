@@ -122,6 +122,8 @@ export function PixGenerationPage() {
 
         <div className="space-y-6">
           <PixGenerationForm
+            onSuccess={_pix => {}}
+            onError={_error => {}}
             onSubmit={generatePix}
             loading={loading}
             data-testid="pix-generation-form"

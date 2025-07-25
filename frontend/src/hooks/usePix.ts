@@ -24,12 +24,19 @@ export const usePix = () => {
   );
 
   const confirmPix = useCallback(
-    async (token: string): Promise<PixPayment | null> => {
+    async (
+      token: string
+    ): Promise<{
+      success: boolean;
+      message: string;
+      status: 'paid' | 'already_paid' | 'expired' | 'not_found' | 'error';
+      pix?: PixPayment;
+    } | null> => {
       try {
         setLoading(true);
         setError(null);
-        const pix = await pixService.confirm(token);
-        return pix;
+        const result = await pixService.confirm(token);
+        return result;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao confirmar PIX');
         return null;

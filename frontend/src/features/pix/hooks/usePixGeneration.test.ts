@@ -66,7 +66,7 @@ describe('usePixGeneration', () => {
 
   it('should set loading state during generation', async () => {
     let resolvePromise: (value: any) => void;
-    const promise = new Promise(resolve => {
+    const promise = new Promise<any>(resolve => {
       resolvePromise = resolve;
     });
 

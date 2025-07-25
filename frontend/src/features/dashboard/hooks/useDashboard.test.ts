@@ -26,7 +26,7 @@ const mockPixListResponse = {
       id: 1,
       token: 'abc123',
       amount: 100.5,
-      status: 'generated',
+      status: 'generated' as const,
       created_at: '2025-01-24T10:00:00Z',
       expires_at: '2025-01-24T10:15:00Z',
       updated_at: '2025-01-24T10:00:00Z',
@@ -35,12 +35,21 @@ const mockPixListResponse = {
       id: 2,
       token: 'def456',
       amount: 50.25,
-      status: 'paid',
+      status: 'paid' as const,
       created_at: '2025-01-24T09:00:00Z',
       updated_at: '2025-01-24T09:05:00Z',
       paid_at: '2025-01-24T09:05:00Z',
+      expires_at: '2025-01-24T09:15:00Z',
     },
   ],
+  meta: {
+    total: 2,
+    count: 2,
+    per_page: 10,
+    current_page: 1,
+    last_page: 1,
+    has_more_pages: false,
+  },
 };
 
 describe('useDashboard', () => {

@@ -8,6 +8,8 @@ import { formatCurrencyInput, parseCurrencyToFloat } from '@/utils/formatters';
 interface PixGenerationFormProps {
   onSuccess: (pix: PixPayment) => void;
   onError: (error: string) => void;
+  onSubmit?: (data: CreatePixData) => Promise<void>;
+  loading?: boolean;
 }
 
 interface FormData {

@@ -5,6 +5,7 @@ interface PixStatsCardProps {
   title: string;
   value: number;
   color: 'blue' | 'green' | 'red' | 'gray';
+  icon?: string;
 }
 
 const colorClasses = {

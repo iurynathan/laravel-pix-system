@@ -1,3 +1,6 @@
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -9,15 +12,48 @@ export const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('pt-BR').format(value);
 };
 
-export const formatDate = (date: string | Date): string => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(dateObj);
+/**
+ * Formatar datas usando date-fns com locale pt-BR
+ * @param date - Data como string (YYYY-MM-DD) ou objeto Date
+ * @param formatPattern - Padrão de formatação (ex: 'dd/MM/yyyy', 'dd/MM', 'dd/MM/yyyy HH:mm')
+ * @returns Data formatada
+ */
+export const formatDate = (
+  date: string | Date,
+  formatPattern: string = 'dd/MM/yyyy HH:mm'
+): string => {
+  try {
+    let dateObj: Date;
+
+    if (typeof date === 'string') {
+      if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = date.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day);
+      } else {
+        dateObj = parseISO(date);
+      }
+    } else {
+      dateObj = date;
+    }
+
+    return format(dateObj, formatPattern, { locale: ptBR });
+  } catch (error) {
+    console.error('Erro ao formatar data:', error);
+    return 'Data inválida';
+  }
+};
+
+// Funções de conveniência para formatos comuns
+export const formatDateOnly = (date: string | Date): string => {
+  return formatDate(date, 'dd/MM');
+};
+
+export const formatDateTime = (date: string | Date): string => {
+  return formatDate(date, 'dd/MM/yyyy HH:mm');
+};
+
+export const formatDateFull = (date: string | Date): string => {
+  return formatDate(date, 'dd/MM/yyyy');
 };
 
 export const formatPixToken = (token: string): string => {

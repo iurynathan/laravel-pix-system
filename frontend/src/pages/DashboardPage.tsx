@@ -1,42 +1,76 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useDebounce } from 'use-debounce';
 import { AppLayout } from '@/components/templates';
+import { Button } from '@/components/atoms';
 import {
+  DashboardFilters,
   PixStatsCard,
-  PixChart,
-  PixList,
+  PixChartRecharts,
+  PixTimelineChart,
+  PixVirtualList,
 } from '@/features/dashboard/components';
 import { useDashboard } from '@/features/dashboard/hooks';
 import { usePixContext } from '@/context';
+import { Plus, RefreshCw } from 'lucide-react';
+import type { PixFilters } from '@/features/dashboard/types';
 
 export function DashboardPage() {
-  const {
-    statistics,
-    loading: statsLoading,
-    error: statsError,
-  } = useDashboard();
   const {
     pixList,
     loading: pixLoading,
     pagination,
+    filters,
     fetchPixList,
+    updateFilters,
     refreshPixList,
   } = usePixContext();
 
-  // Carrega dados iniciais do PIX quando o componente montar
+  const {
+    statistics,
+    loading: statsLoading,
+    error: statsError,
+    loadStatistics,
+  } = useDashboard();
+
+  const [debouncedFilters] = useDebounce(filters, 500);
+  const [isInitialRender, setIsInitialRender] = useState(true);
+
   useEffect(() => {
-    fetchPixList();
-  }, [fetchPixList]);
+    fetchPixList(1);
+    // Na primeira renderização, mostrar loading. Depois, não mostrar
+    loadStatistics(debouncedFilters, isInitialRender);
+
+    if (isInitialRender) {
+      setIsInitialRender(false);
+    }
+  }, [debouncedFilters, fetchPixList, loadStatistics, isInitialRender]);
 
   const handlePageChange = (page: number) => {
     fetchPixList(page);
   };
 
-  const handleStatusFilter = (status: string) => {
-    fetchPixList(1, status || undefined);
+  const handleFilterChange = (newFilters: Partial<PixFilters>) => {
+    updateFilters(newFilters);
+  };
+
+  const handleResetFilters = () => {
+    updateFilters({
+      status: '',
+      search: '',
+      start_date: '',
+      end_date: '',
+      min_value: '',
+      max_value: '',
+      sort_by: 'created_at',
+      sort_direction: 'desc',
+    });
   };
 
   const handleRefresh = () => {
     refreshPixList();
+    // No refresh, queremos mostrar loading
+    loadStatistics(filters, true);
   };
 
   if (statsLoading) {
@@ -72,19 +106,47 @@ export function DashboardPage() {
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard PIX</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard PIX</h1>
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              className="flex items-center space-x-2"
+              disabled={statsLoading || pixLoading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${statsLoading || pixLoading ? 'animate-spin' : ''}`}
+              />
+              <span>Atualizar</span>
+            </Button>
+            <Link to="/pix/create">
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Criar PIX
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <DashboardFilters
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onResetFilters={handleResetFilters}
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <PixStatsCard
             title="Total de PIX"
-            value={statistics?.total || 0}
+            value={statistics?.total_pix || 0}
             color="blue"
           />
           <PixStatsCard
-            title="Aguardando"
+            title="Pendentes"
             value={statistics?.generated || 0}
-            color="gray"
+            color="yellow"
           />
           <PixStatsCard
             title="Pagos"
@@ -98,43 +160,74 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Chart */}
+        {/* Gráfico de Pizza - Distribuição por Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PixChart data={statistics} />
+          <PixChartRecharts
+            data={statistics}
+            type="pie"
+            title="Distribuição de PIX por Status"
+          />
 
-          <div className="space-y-4">
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="text-lg font-semibold mb-2">Valor Total</h3>
-              <p className="text-3xl font-bold text-green-600">
-                {statistics?.total_amount
-                  ? new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(statistics.total_amount)
-                  : 'R$ 0,00'}
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="text-lg font-semibold mb-2">Taxa de Conversão</h3>
-              <p className="text-3xl font-bold text-blue-600">
-                {statistics && statistics.total > 0
-                  ? Math.round((statistics.paid / statistics.total) * 100)
-                  : 0}
-                %
-              </p>
+          {/* Card com resumo do valor total por período */}
+          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900">
+              Resumo de Valores
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Total Processado</span>
+                <span className="text-lg font-bold text-green-600">
+                  {statistics?.total_amount
+                    ? new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(statistics.total_amount)
+                    : 'R$ 0,00'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Taxa de Conversão</span>
+                <span className="text-lg font-bold text-blue-600">
+                  {statistics && statistics.total_pix > 0
+                    ? Math.round((statistics.paid / statistics.total_pix) * 100)
+                    : 0}
+                  %
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">PIX por Status</span>
+                <div className="text-sm space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span>Pagos: {statistics?.paid || 0}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    <span>Pendentes: {statistics?.generated || 0}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span>Expirados: {statistics?.expired || 0}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* PIX List */}
-        <PixList
+        {/* Timeline Chart - Evolução dos PIX nos últimos 30 dias */}
+        <div className="grid grid-cols-1 gap-6">
+          <PixTimelineChart days={30} />
+        </div>
+
+        {/* PIX List com Virtual Scrolling */}
+        <PixVirtualList
           pixList={pixList}
           loading={pixLoading}
           pagination={pagination}
-          onRefresh={handleRefresh}
           onPageChange={handlePageChange}
-          onStatusFilter={handleStatusFilter}
+          height={600}
+          itemHeight={80}
         />
       </div>
     </AppLayout>

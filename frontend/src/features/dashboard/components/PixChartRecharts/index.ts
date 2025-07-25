@@ -1,0 +1,1 @@
+export { PixChartRecharts } from './PixChartRecharts';

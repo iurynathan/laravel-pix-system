@@ -4,9 +4,11 @@ import React, {
   useReducer,
   useCallback,
 } from 'react';
+import toast from 'react-hot-toast';
 import { pixService } from '@/services/pix';
 import type { PixPayment, CreatePixData, PixStatistics } from '@/types/pix';
 import type { PaginatedResponse } from '@/types/api';
+import type { PixFilters } from '@/features/dashboard/types';
 
 interface PixState {
   pixList: PixPayment[];
@@ -19,6 +21,7 @@ interface PixState {
     perPage: number;
     total: number;
   } | null;
+  filters: PixFilters;
 }
 
 type PixAction =
@@ -28,10 +31,12 @@ type PixAction =
   | { type: 'SET_STATISTICS'; payload: PixStatistics }
   | { type: 'ADD_PIX'; payload: PixPayment }
   | { type: 'UPDATE_PIX'; payload: PixPayment }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'SET_FILTERS'; payload: Partial<PixFilters> };
 
 interface PixContextType extends PixState {
-  fetchPixList: (page?: number, status?: string) => Promise<void>;
+  fetchPixList: (page?: number) => Promise<void>;
+  updateFilters: (newFilters: Partial<PixFilters>) => void;
   createPix: (data: CreatePixData) => Promise<PixPayment | null>;
   confirmPix: (token: string) => Promise<any>;
   fetchStatistics: () => Promise<void>;
@@ -45,6 +50,16 @@ const initialState: PixState = {
   error: null,
   statistics: null,
   pagination: null,
+  filters: {
+    status: '',
+    search: '',
+    start_date: '',
+    end_date: '',
+    min_value: '',
+    max_value: '',
+    sort_by: 'created_at',
+    sort_direction: 'desc',
+  },
 };
 
 function pixReducer(state: PixState, action: PixAction): PixState {
@@ -54,6 +69,12 @@ function pixReducer(state: PixState, action: PixAction): PixState {
 
     case 'SET_ERROR':
       return { ...state, error: action.payload, loading: false };
+
+    case 'SET_FILTERS':
+      return {
+        ...state,
+        filters: { ...state.filters, ...action.payload },
+      };
 
     case 'SET_PIX_LIST':
       return {
@@ -121,20 +142,27 @@ export function PixProvider({ children }: { children: React.ReactNode }) {
     return 'Erro inesperado';
   };
 
-  const fetchPixList = useCallback(async (page = 1, status?: string) => {
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: null });
+  const fetchPixList = useCallback(
+    async (page = 1) => {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
 
-    try {
-      const response = await pixService.list(page, status);
-      dispatch({
-        type: 'SET_PIX_LIST',
-        payload: response,
-      });
-    } catch (error) {
-      const errorMessage = extractErrorMessage(error);
-      dispatch({ type: 'SET_ERROR', payload: errorMessage });
-    }
+      try {
+        const response = await pixService.list({ ...state.filters, page });
+        dispatch({
+          type: 'SET_PIX_LIST',
+          payload: response,
+        });
+      } catch (error) {
+        const errorMessage = extractErrorMessage(error);
+        dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      }
+    },
+    [state.filters]
+  );
+
+  const updateFilters = useCallback((newFilters: Partial<PixFilters>) => {
+    dispatch({ type: 'SET_FILTERS', payload: newFilters });
   }, []);
 
   const createPix = useCallback(
@@ -146,13 +174,23 @@ export function PixProvider({ children }: { children: React.ReactNode }) {
         const newPix = await pixService.create(data);
         dispatch({ type: 'ADD_PIX', payload: newPix });
 
-        // Refresh the list to get updated data
         await fetchPixList(1);
+
+        toast.success('PIX criado com sucesso!', {
+          duration: 4000,
+          icon: '✅',
+        });
 
         return newPix;
       } catch (error) {
         const errorMessage = extractErrorMessage(error);
         dispatch({ type: 'SET_ERROR', payload: errorMessage });
+
+        toast.error(`Erro ao criar PIX: ${errorMessage}`, {
+          duration: 5000,
+          icon: '❌',
+        });
+
         return null;
       }
     },
@@ -168,8 +206,31 @@ export function PixProvider({ children }: { children: React.ReactNode }) {
 
       if (result.success && result.pix) {
         dispatch({ type: 'UPDATE_PIX', payload: result.pix });
+
+        // Toast de sucesso
+        toast.success('PIX confirmado com sucesso!', {
+          duration: 4000,
+          icon: '💚',
+        });
       } else if (!result.success) {
         dispatch({ type: 'SET_ERROR', payload: result.message });
+
+        if (result.status === 'expired') {
+          toast.error('PIX expirado', {
+            duration: 4000,
+            icon: '⏰',
+          });
+        } else if (result.status === 'already_paid') {
+          toast('PIX já foi pago anteriormente', {
+            duration: 4000,
+            icon: 'ℹ️',
+          });
+        } else {
+          toast.error(result.message, {
+            duration: 5000,
+            icon: '❌',
+          });
+        }
       }
 
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -177,6 +238,12 @@ export function PixProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
+
+      toast.error(`Erro ao confirmar PIX: ${errorMessage}`, {
+        duration: 5000,
+        icon: '❌',
+      });
+
       throw error;
     }
   }, []);
@@ -209,6 +276,7 @@ export function PixProvider({ children }: { children: React.ReactNode }) {
   const contextValue: PixContextType = {
     ...state,
     fetchPixList,
+    updateFilters,
     createPix,
     confirmPix,
     fetchStatistics,

@@ -1,6 +1,6 @@
 import React, { createContext, useReducer, useEffect } from 'react';
-import { authService } from '../services/auth';
-import type { User, LoginCredentials, RegisterData } from '../types/auth';
+import { authService } from '@/services/auth';
+import type { User, LoginCredentials, RegisterData } from '@/types/auth';
 
 interface AuthState {
   user: User | null;
@@ -92,8 +92,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (credentials: LoginCredentials) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const { user, token } = await authService.login(credentials);
-      localStorage.setItem('auth_token', token);
+      const { access_token, user } = await authService.login(credentials);
+      localStorage.setItem('auth_token', access_token);
       dispatch({ type: 'SET_USER', payload: user });
     } catch (error) {
       dispatch({
@@ -106,8 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const register = async (data: RegisterData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const { user, token } = await authService.register(data);
-      localStorage.setItem('auth_token', token);
+      const { access_token, user } = await authService.register(data);
+      localStorage.setItem('auth_token', access_token);
       dispatch({ type: 'SET_USER', payload: user });
     } catch (error) {
       dispatch({

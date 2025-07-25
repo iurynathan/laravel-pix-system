@@ -1,0 +1,1 @@
+export { PixGenerationForm } from './PixGenerationForm';

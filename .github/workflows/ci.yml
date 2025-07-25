@@ -157,8 +157,12 @@ jobs:
       working-directory: ./backend
       run: |
         echo "📊 Verificando cobertura do backend..."
+        
+        if ! command -v xmllint &> /dev/null; then
+          echo "ℹ️ Instalando xmllint..."
+          sudo apt-get update && sudo apt-get install -y libxml2-utils
+        fi
 
-        # Verifica se o arquivo de cobertura existe
         if [ ! -f "coverage.xml" ]; then
           echo "❌ Arquivo coverage.xml não encontrado!"
           exit 1

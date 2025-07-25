@@ -2,10 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ '*' ]
+    branches: [ main, develop, 'feature/*' ]
   pull_request:
-    branches: [ '*' ]
-  workflow_dispatch:
+    branches: [ main, develop ]
 
 jobs:
   test:
@@ -40,63 +39,189 @@ jobs:
         extensions: mbstring, dom, fileinfo, mysql, redis
         coverage: xdebug
 
-    # 3. Cache das dependências do Composer (apontando para o arquivo lock dentro de 'backend')
+    # 3. Cache das dependências do Composer
     - name: Cache Composer dependencies
       uses: actions/cache@v3
       with:
-        path: backend/vendor # O caminho do vendor agora é dentro de backend
+        path: backend/vendor
         key: ${{ runner.os }}-php-${{ hashFiles('backend/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-php-
 
-    # 4. Instala as dependências do PHP dentro da pasta 'backend'
+    # 4. Instala as dependências do PHP
     - name: Install PHP dependencies
       working-directory: ./backend
       run: composer install --no-progress --prefer-dist --optimize-autoloader
 
-    # 5. Configura o Node.js e o cache do NPM (apontando para o lock file dentro de 'backend')
+    # 5. Configura o Node.js para frontend
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: backend/package-lock.json # Aponta para o local correto
+        node-version: '22'
 
-    # 6. Instala as dependências do NPM dentro da pasta 'backend'
-    - name: Install NPM dependencies
+    # 6. Cache das dependências NPM do frontend
+    - name: Cache Frontend NPM dependencies
+      uses: actions/cache@v3
+      with:
+        path: frontend/node_modules
+        key: ${{ runner.os }}-frontend-npm-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-frontend-npm-
+
+    # 7. Cache das dependências NPM do backend
+    - name: Cache Backend NPM dependencies
+      uses: actions/cache@v3
+      with:
+        path: backend/node_modules
+        key: ${{ runner.os }}-backend-npm-${{ hashFiles('backend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-backend-npm-
+
+    # 8. Instala dependências NPM do frontend
+    - name: Install Frontend NPM dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    # 9. Instala dependências NPM do backend
+    - name: Install Backend NPM dependencies
       working-directory: ./backend
       run: npm install
 
-    # 7. Copia o arquivo de ambiente DENTRO da pasta 'backend'
+    # 10. Copia o arquivo de ambiente
     - name: Copy environment file
       working-directory: ./backend
       run: cp .env.testing .env
 
-    # 8. Gera a chave da aplicação DENTRO da pasta 'backend'
+    # 11. Gera a chave da aplicação
     - name: Generate application key
       working-directory: ./backend
       run: php artisan key:generate
 
-    # 9. Roda as migrations DENTRO da pasta 'backend'
+    # 12. Roda as migrations
     - name: Run database migrations
       working-directory: ./backend
       run: php artisan migrate --force
 
-    # 10. Roda o build do frontend DENTRO da pasta 'backend'
-    - name: Build frontend assets
+    # 13. Build do frontend React/TypeScript
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    # 14. Executa testes do frontend com coverage
+    - name: Execute Frontend tests
+      working-directory: ./frontend
+      run: npm run test:coverage -- --run
+
+    # 15. Build assets do backend
+    - name: Build backend assets
       working-directory: ./backend
       run: npm run build
 
-    # 11. Executa os testes DENTRO da pasta 'backend'
-    - name: Execute PHP tests
+    # 16. Executa os testes do backend com cobertura (PHPUnit 10+)
+    - name: Execute Backend tests
       working-directory: ./backend
-      run: php artisan test --env=testing --coverage-clover coverage.xml
+      run: php artisan test --env=testing --coverage --coverage-clover coverage.xml
 
-    # 12. Faz o upload da cobertura de testes (o arquivo está em 'backend')
-    - name: Upload coverage to Codecov
+    # 17. Verifica cobertura mínima frontend (80%)
+    - name: Check Frontend coverage (80%)
+      working-directory: ./frontend
+      run: |
+        echo "📊 Verificando cobertura do frontend..."
+        
+        # Verifica se o arquivo de cobertura existe
+        if [ ! -f "coverage/coverage-summary.json" ]; then
+          echo "❌ Arquivo coverage-summary.json não encontrado!"
+          echo "🔍 Verifique se os testes geraram o relatório de cobertura"
+          exit 1
+        fi
+        
+        # Extrai cobertura do arquivo JSON do Vitest
+        COVERAGE_PERCENT=$(node -e "const coverage = require('./coverage/coverage-summary.json'); console.log(coverage.total.statements.pct);")
+        
+        echo "📊 Cobertura frontend: $COVERAGE_PERCENT%"
+        echo "🎯 Cobertura mínima: 80%"
+        
+        # Verifica se atende o mínimo usando Node.js para comparação float
+        MEETS_MINIMUM=$(node -e "console.log($COVERAGE_PERCENT >= 80 ? 'yes' : 'no');")
+        
+        if [ "$MEETS_MINIMUM" = "yes" ]; then
+          echo "✅ Cobertura frontend aprovada! ($COVERAGE_PERCENT% >= 80%)"
+        else
+          echo "❌ Cobertura frontend insuficiente! ($COVERAGE_PERCENT% < 80%)"
+          echo "🔧 Execute mais testes para atingir o mínimo de 80%"
+          exit 1
+        fi
+
+    # 18. Verifica cobertura mínima backend (80%) com xmllint
+    - name: Check Backend coverage (80%)
+      working-directory: ./backend
+      run: |
+        echo "📊 Verificando cobertura do backend..."
+        
+        if ! command -v xmllint &> /dev/null; then
+          echo "ℹ️ Instalando xmllint..."
+          sudo apt-get update && sudo apt-get install -y libxml2-utils
+        fi
+
+        if [ ! -f "coverage.xml" ]; then
+          echo "❌ Arquivo coverage.xml não encontrado!"
+          exit 1
+        fi
+
+        echo "📄 Arquivo de cobertura encontrado"
+
+        TOTAL_STATEMENTS=$(xmllint --xpath 'string((//metrics)[last()]/@statements)' coverage.xml)
+        COVERED_STATEMENTS=$(xmllint --xpath 'string((//metrics)[last()]/@coveredstatements)' coverage.xml)
+
+        if [ -z "$TOTAL_STATEMENTS" ] || [ -z "$COVERED_STATEMENTS" ] || [ "$TOTAL_STATEMENTS" -eq 0 ]; then
+          echo "❌ Não foi possível extrair dados válidos de cobertura"
+          echo "🔍 statements=$TOTAL_STATEMENTS, covered=$COVERED_STATEMENTS"
+          exit 1
+        fi
+
+        COVERAGE_PERCENT=$(awk "BEGIN {printf \"%.1f\", ($COVERED_STATEMENTS / $TOTAL_STATEMENTS) * 100}")
+
+        echo "📊 Cobertura atual: $COVERAGE_PERCENT% ($COVERED_STATEMENTS/$TOTAL_STATEMENTS statements)"
+        echo "🎯 Cobertura mínima: 80.0%"
+
+        MEETS_MINIMUM=$(awk "BEGIN {print (($COVERED_STATEMENTS / $TOTAL_STATEMENTS) >= 0.8) ? \"yes\" : \"no\"}")
+
+        if [ "$MEETS_MINIMUM" = "yes" ]; then
+          echo "✅ Cobertura backend aprovada! ($COVERAGE_PERCENT% >= 80%)"
+        else
+          echo "❌ Cobertura backend insuficiente! ($COVERAGE_PERCENT% < 80%)"
+          NEEDED=$(awk "BEGIN {print int(($TOTAL_STATEMENTS * 0.8) - $COVERED_STATEMENTS + 1)}")
+          echo "🔧 Faltam $NEEDED+ statements cobertos para atingir o mínimo"
+          exit 1
+        fi
+
+    # 19. Upload da cobertura backend para Codecov
+    - name: Upload Backend coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        token: ${{ secrets.CODECOV_TOKEN }} 
+        token: ${{ secrets.CODECOV_TOKEN }}
         file: ./backend/coverage.xml
-        flags: unittests
-        name: codecov-umbrella
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+
+    # 20. Upload da cobertura frontend para Codecov
+    - name: Upload Frontend coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: ./frontend/coverage
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+
+    # 21. Output final de sucesso
+    - name: Success summary
+      run: |
+        echo "🎉 Pipeline executado com sucesso!"
+        echo "✅ Todos os testes backend passaram"
+        echo "✅ Todos os testes frontend passaram" 
+        echo "✅ Cobertura backend >= 80%"
+        echo "✅ Cobertura frontend >= 80%"
+        echo "✅ Build do frontend OK"
+        echo "✅ Build do backend OK"

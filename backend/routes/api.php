@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     
     Route::prefix('pix')->group(function () {
         Route::get('/', [PixController::class, 'index']);
+        Route::get('/statistics', [PixController::class, 'statistics']);
         
         Route::post('/', [PixController::class, 'store'])
             ->middleware('pix.rate_limit:create');

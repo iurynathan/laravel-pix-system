@@ -1,0 +1,26 @@
+{
+  "name": "laravel-pix-system",
+  "version": "1.0.0",
+  "description": "Sistema de cobrança PIX fake com Laravel + React",
+  "scripts": {
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "frontend:lint": "cd frontend && npm run lint",
+    "frontend:format": "cd frontend && npm run format",
+    "frontend:test": "cd frontend && npm run test",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2"
+  },
+  "lint-staged": {
+    "frontend/**/*.{ts,tsx}": [
+      "cd frontend && npm run lint:fix",
+      "cd frontend && npm run format"
+    ],
+    "frontend/**/*.{json,css,md}": [
+      "cd frontend && npm run format"
+    ]
+  }
+}

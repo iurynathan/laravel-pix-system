@@ -81,7 +81,12 @@ class AuthController extends Controller
                 'message' => 'Login realizado com sucesso',
                 'data' => [
                     'access_token' => $token,
-                    'token_type' => 'Bearer'
+                    'token_type' => 'Bearer',
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ]
                 ]
             ]);
         } catch (ValidationException $e) {

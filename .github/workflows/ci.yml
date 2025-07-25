@@ -152,54 +152,42 @@ jobs:
           exit 1
         fi
 
-    # 18. Verifica cobertura mínima backend (80%)
+    # 18. Verifica cobertura mínima backend (80%) com xmllint
     - name: Check Backend coverage (80%)
       working-directory: ./backend
       run: |
+        echo "📊 Verificando cobertura do backend..."
+
         # Verifica se o arquivo de cobertura existe
         if [ ! -f "coverage.xml" ]; then
           echo "❌ Arquivo coverage.xml não encontrado!"
           exit 1
         fi
-        
+
         echo "📄 Arquivo de cobertura encontrado"
-        
-        # Extrai métricas do formato Clover (última linha com metrics)
-        METRICS_LINE=$(grep '<metrics.*statements=' coverage.xml | tail -1)
-        
-        if [ -z "$METRICS_LINE" ]; then
-          echo "❌ Não foi possível encontrar métricas no arquivo XML"
-          echo "🔍 Conteúdo do arquivo:"
-          head -20 coverage.xml
-          exit 1
-        fi
-        
-        # Extrair statements e coveredstatements
-        TOTAL_STATEMENTS=$(echo "$METRICS_LINE" | grep -oP 'statements="\K[0-9]+')
-        COVERED_STATEMENTS=$(echo "$METRICS_LINE" | grep -oP 'coveredstatements="\K[0-9]+')
-        
+
+        TOTAL_STATEMENTS=$(xmllint --xpath 'string((//metrics)[last()]/@statements)' coverage.xml)
+        COVERED_STATEMENTS=$(xmllint --xpath 'string((//metrics)[last()]/@coveredstatements)' coverage.xml)
+
         if [ -z "$TOTAL_STATEMENTS" ] || [ -z "$COVERED_STATEMENTS" ] || [ "$TOTAL_STATEMENTS" -eq 0 ]; then
-          echo "❌ Não foi possível extrair dados de cobertura"
-          echo "🔍 Linha de métricas: $METRICS_LINE"
+          echo "❌ Não foi possível extrair dados válidos de cobertura"
+          echo "🔍 statements=$TOTAL_STATEMENTS, covered=$COVERED_STATEMENTS"
           exit 1
         fi
-        
-        # Calcular cobertura
+
         COVERAGE_PERCENT=$(awk "BEGIN {printf \"%.1f\", ($COVERED_STATEMENTS / $TOTAL_STATEMENTS) * 100}")
-        
+
         echo "📊 Cobertura atual: $COVERAGE_PERCENT% ($COVERED_STATEMENTS/$TOTAL_STATEMENTS statements)"
         echo "🎯 Cobertura mínima: 80.0%"
-        
-        # Verificar se atende o mínimo
+
         MEETS_MINIMUM=$(awk "BEGIN {print (($COVERED_STATEMENTS / $TOTAL_STATEMENTS) >= 0.8) ? \"yes\" : \"no\"}")
-        
+
         if [ "$MEETS_MINIMUM" = "yes" ]; then
-          echo "✅ Cobertura aprovada! ($COVERAGE_PERCENT% >= 80%)"
+          echo "✅ Cobertura backend aprovada! ($COVERAGE_PERCENT% >= 80%)"
         else
-          echo "❌ Cobertura insuficiente! ($COVERAGE_PERCENT% < 80%)"
-          echo "🔧 Execute mais testes para atingir o mínimo de 80%"
+          echo "❌ Cobertura backend insuficiente! ($COVERAGE_PERCENT% < 80%)"
           NEEDED=$(awk "BEGIN {print int(($TOTAL_STATEMENTS * 0.8) - $COVERED_STATEMENTS + 1)}")
-          echo "💡 Você precisa de mais $NEEDED+ statements cobertos"
+          echo "🔧 Faltam $NEEDED+ statements cobertos para atingir o mínimo"
           exit 1
         fi
 

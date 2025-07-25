@@ -30,19 +30,22 @@ class PixController extends Controller
     public function index(PixPaymentIndexRequest $request): JsonResponse
     {
         try {
-            $query = $request->user()->pixPayments()
-                ->with([])
-                ->latest();
+            $validated = $request->validated();
+            $user = $request->user();
 
-            if ($request->filled('status')) {
-                $query->byStatus($request->status);
-            }
+            $query = $user->is_admin
+                ? PixPayment::with('user:id,name,email')->forDashboard()
+                : $user->pixPayments()->forDashboard();
 
-            if ($request->filled('search')) {
-                $query->where('description', 'like', '%' . $request->search . '%');
-            }
+            // Aplicar filtros e ordenação
+            $query
+                ->when($validated['status'] ?? null, fn ($q, $status) => $q->byStatus($status))
+                ->when($validated['search'] ?? null, fn ($q, $search) => $q->search($search))
+                ->byDateRange($validated['start_date'] ?? null, $validated['end_date'] ?? null)
+                ->byValueRange($validated['min_value'] ?? null, $validated['max_value'] ?? null)
+                ->applySort($validated['sort_by'] ?? 'created_at', $validated['sort_direction'] ?? 'desc');
 
-            $perPage = $request->per_page ?? 15;
+            $perPage = min($validated['per_page'] ?? 15, 50);
             $pixPayments = $query->paginate($perPage);
 
             return response()->json([
@@ -50,9 +53,16 @@ class PixController extends Controller
                 'data' => new PixPaymentCollection($pixPayments)
             ]);
         } catch (Exception $e) {
+            // Log do erro para depuração
+            \Log::error('Erro ao buscar pagamentos PIX: ' . $e->getMessage(), [
+                'user_id' => $request->user()?->id,
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao buscar pagamentos PIX'
+                'message' => 'Erro ao buscar pagamentos PIX.'
             ], 500);
         }
     }
@@ -162,20 +172,58 @@ class PixController extends Controller
     /**
      * Get user's PIX statistics
      */
-    public function statistics(Request $request): JsonResponse
+    public function statistics(PixPaymentIndexRequest $request): JsonResponse
     {
         try {
+            $validated = $request->validated();
             $user = $request->user();
-            $statistics = $user->getPixStatistics();
+            
+            if ($user->is_admin) {
+                $statistics = $this->pixService->getSystemStatistics($validated);
+            } else {
+                $statistics = $this->pixService->getUserStatistics($user, $validated);
+            }
 
             return response()->json([
                 'success' => true,
                 'data' => $statistics
             ]);
         } catch (Exception $e) {
+            \Log::error('Statistics error: ' . $e->getMessage(), [
+                'user_id' => $request->user()?->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao obter estatísticas'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get PIX timeline data for charts
+     */
+    public function timeline(Request $request): JsonResponse
+    {
+        try {
+            $days = min((int) $request->get('days', 30), 90);
+            $user = $request->user();
+            
+            if ($user->is_admin) {
+                $timelineData = $this->pixService->getSystemTimelineData($days);
+            } else {
+                $timelineData = $this->pixService->getTimelineData($user, $days);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $timelineData
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao buscar dados temporais: ' . $e->getMessage()
             ], 500);
         }
     }

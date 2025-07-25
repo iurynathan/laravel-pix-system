@@ -23,6 +23,10 @@ class PixPaymentPolicy
      */
     public function view(User $user, PixPayment $pixPayment): bool
     {
+        if ($user->is_admin) {
+            return true;
+        }
+
         return $user->id === $pixPayment->user_id;
     }
 

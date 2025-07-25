@@ -71,6 +71,69 @@ class PixPayment extends Model
         return $query->where('status', $status);
     }
 
+    public function scopeForDashboard(Builder $query): Builder
+    {
+        return $query->select(['id', 'user_id', 'token', 'amount', 'description', 'status', 'expires_at', 'paid_at', 'created_at']);
+    }
+
+    public function scopeWithUser(Builder $query): Builder
+    {
+        return $query->with(['user:id,name,email']);
+    }
+
+    public function scopeRecentFirst(Builder $query): Builder
+    {
+        return $query->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Scope to search by description or token.
+     */
+    public function scopeSearch(Builder $query, string $search): Builder
+    {
+        return $query->where(function (Builder $q) use ($search) {
+            $q->where('description', 'like', "%{$search}%")
+              ->orWhere('token', 'like', "%{$search}%");
+        });
+    }
+
+    /**
+     * Scope to filter by a date range.
+     */
+    public function scopeByDateRange(Builder $query, ?string $startDate, ?string $endDate): Builder
+    {
+        return $query->when($startDate, function (Builder $q) use ($startDate) {
+            $q->whereDate('created_at', '>=', $startDate);
+        })->when($endDate, function (Builder $q) use ($endDate) {
+            $q->whereDate('created_at', '<=', $endDate);
+        });
+    }
+
+    /**
+     * Scope to filter by a value range.
+     */
+    public function scopeByValueRange(Builder $query, ?string $minValue, ?string $maxValue): Builder
+    {
+        return $query->when($minValue, function (Builder $q) use ($minValue) {
+            $q->where('amount', '>=', $minValue);
+        })->when($maxValue, function (Builder $q) use ($maxValue) {
+            $q->where('amount', '<=', $maxValue);
+        });
+    }
+
+    /**
+     * Scope to apply dynamic sorting.
+     */
+    public function scopeApplySort(Builder $query, ?string $sortBy, ?string $sortDirection): Builder
+    {
+        if ($sortBy) {
+            $direction = $sortDirection ?? 'desc';
+            return $query->orderBy($sortBy, $direction);
+        }
+
+        return $query;
+    }
+
     public function isExpired(): bool
     {
         return $this->status === 'generated' && 
@@ -129,6 +192,15 @@ class PixPayment extends Model
         );
     }
 
+    /**
+     * Get company data for PIX
+     */
+    public function getCompanyData(): array
+    {
+        $qrCodeService = app(\App\Services\QrCodeService::class);
+        return $qrCodeService->getCompanyData();
+    }
+
     public function getRemainingTime(): int
     {
         if ($this->isExpired()) {
@@ -164,6 +236,7 @@ class PixPayment extends Model
             'is_expired' => $this->isExpired(),
             'is_paid' => $this->isPaid(),
             'can_be_paid' => $this->canBePaid(),
+            'company' => $this->getCompanyData(),
         ];
     }
 }

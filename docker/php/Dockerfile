@@ -37,14 +37,13 @@ WORKDIR /var/www
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
-USER laravel
+# Script para iniciar tanto o servidor quanto php-fpm se necessário
+COPY docker/php/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
 EXPOSE 8000
 
-# Script para iniciar tanto o servidor quanto php-fpm se necessário
-COPY docker/php/start.sh /usr/local/bin/start.sh
-USER root
-RUN chmod +x /usr/local/bin/start.sh
+# Manter como root para permitir cron, mas Laravel roda como usuário laravel
 USER laravel
 
 CMD ["/usr/local/bin/start.sh"]

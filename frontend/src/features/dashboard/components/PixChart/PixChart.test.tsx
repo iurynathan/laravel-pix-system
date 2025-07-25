@@ -9,6 +9,8 @@ const mockData: PixStatistics = {
   expired: 3,
   total: 26,
   total_amount: 1000.5,
+  total_pix: 26,
+  conversion_rate: 33.33,
 };
 
 describe('PixChart', () => {
@@ -34,7 +36,7 @@ describe('PixChart', () => {
   it('renders legend with status labels and counts', () => {
     render(<PixChart data={mockData} title="PIX Chart" />);
 
-    expect(screen.getByText('Gerados: 15')).toBeInTheDocument();
+    expect(screen.getByText('Pendentes: 15')).toBeInTheDocument();
     expect(screen.getByText('Pagos: 8')).toBeInTheDocument();
     expect(screen.getByText('Expirados: 3')).toBeInTheDocument();
   });

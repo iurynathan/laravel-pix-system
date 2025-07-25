@@ -42,7 +42,7 @@ describe('PixStatsCard', () => {
         title="PIX Pendentes"
         value={0}
         icon="generated"
-        color="gray"
+        color="yellow"
       />
     );
 

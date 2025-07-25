@@ -168,6 +168,8 @@ export function PixProvider({ children }: { children: React.ReactNode }) {
 
       if (result.success && result.pix) {
         dispatch({ type: 'UPDATE_PIX', payload: result.pix });
+      } else if (!result.success) {
+        dispatch({ type: 'SET_ERROR', payload: result.message });
       }
 
       dispatch({ type: 'SET_LOADING', payload: false });

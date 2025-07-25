@@ -216,7 +216,11 @@ describe('PixContext', () => {
 
   it('should handle PIX confirmation error', async () => {
     const errorMessage = 'PIX not found';
-    mockPixService.confirm.mockRejectedValue(new Error(errorMessage));
+    mockPixService.confirm.mockResolvedValue({
+      success: false,
+      message: errorMessage,
+      status: 'not_found',
+    });
 
     render(
       <TestWrapper>

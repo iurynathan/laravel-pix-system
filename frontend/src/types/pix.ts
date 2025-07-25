@@ -1,8 +1,8 @@
 export interface PixPayment {
   id: number;
-  user_id: number;
+  user_id?: number;
   token: string;
-  amount: string;
+  amount: number;
   description?: string;
   status: 'generated' | 'paid' | 'expired';
   expires_at: string;
@@ -10,6 +10,12 @@ export interface PixPayment {
   metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  qr_code_url?: string;
+  qr_code_base64?: string;
+  remaining_time?: number;
+  is_expired?: boolean;
+  is_paid?: boolean;
+  can_be_paid?: boolean;
 }
 
 export interface CreatePixData {
@@ -22,4 +28,5 @@ export interface PixStatistics {
   paid: number;
   expired: number;
   total: number;
+  total_amount: number;
 }

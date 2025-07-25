@@ -20,6 +20,18 @@ export interface RegisterData {
 }
 
 export interface AuthResponse {
-  user: User;
+  token_type: string;
   access_token: string;
+  user: User;
+}
+
+export interface UserProfileResponse {
+  user: User;
+  pix_stats: {
+    total: number;
+    generated: number;
+    paid: number;
+    expired: number;
+    total_amount: number;
+  };
 }

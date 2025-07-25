@@ -12,9 +12,11 @@ export interface ApiError {
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
+    total: number;
+    count: number;
+    per_page: number;
     current_page: number;
     last_page: number;
-    per_page: number;
-    total: number;
+    has_more_pages: boolean;
   };
 }

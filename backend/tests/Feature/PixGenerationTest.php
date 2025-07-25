@@ -60,12 +60,12 @@ class PixGenerationTest extends TestCase
 
     public function test_it_sets_expiration_time_correctly()
     {
-        config(['pix.expiration_minutes' => 15]);
+        config(['pix.expiration_minutes' => 10]);
         $beforeGeneration = Carbon::now();
 
         $pixPayment = $this->pixService->generatePixPayment($this->user, 50.00);
 
-        $expectedExpiration = $beforeGeneration->copy()->addMinutes(15);
+        $expectedExpiration = $beforeGeneration->copy()->addMinutes(10);
         
         // Verificar se a diferença está dentro de 2 segundos (tolerância para processamento)
         $actualDifference = abs($expectedExpiration->diffInSeconds($pixPayment->expires_at));

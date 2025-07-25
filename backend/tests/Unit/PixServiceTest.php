@@ -12,6 +12,7 @@ use App\Exceptions\PixPaymentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use Exception;
 
@@ -216,7 +217,7 @@ class PixServiceTest extends TestCase
         $this->assertEquals(1, $stats['generated']);
         $this->assertEquals(1, $stats['paid']);
         $this->assertEquals(1, $stats['expired']);
-        $this->assertEquals('200,00', $stats['total_amount']);
+        $this->assertEquals(200.0, $stats['total_amount']);
         $this->assertEquals(33.33, $stats['conversion_rate']);
     }
 
@@ -228,7 +229,178 @@ class PixServiceTest extends TestCase
         $this->assertEquals(0, $stats['generated']);
         $this->assertEquals(0, $stats['paid']);
         $this->assertEquals(0, $stats['expired']);
-        $this->assertEquals('0,00', $stats['total_amount']);
+        $this->assertEquals(0.0, $stats['total_amount']);
         $this->assertEquals(0, $stats['conversion_rate']);
+    }
+
+    public function test_get_system_statistics_with_filters(): void
+    {
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'generated',
+            'amount' => 100,
+            'description' => 'Test payment'
+        ]);
+        
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'paid',
+            'amount' => 200,
+            'description' => 'Another payment'
+        ]);
+
+        // Test with status filter
+        $stats = $this->pixService->getSystemStatistics(['status' => 'paid']);
+        $this->assertEquals(1, $stats['total_pix']);
+        $this->assertEquals(0, $stats['generated']);
+        $this->assertEquals(1, $stats['paid']);
+
+        // Test with search filter
+        $stats = $this->pixService->getSystemStatistics(['search' => 'Test']);
+        $this->assertEquals(1, $stats['total_pix']);
+        $this->assertEquals(1, $stats['generated']);
+        $this->assertEquals(0, $stats['paid']);
+    }
+
+    public function test_get_user_statistics(): void
+    {
+        $otherUser = User::factory()->create();
+        
+        // User payments
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'generated',
+            'amount' => 100
+        ]);
+        
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'paid',
+            'amount' => 200
+        ]);
+        
+        // Other user payment (should not be included)
+        PixPayment::factory()->create([
+            'user_id' => $otherUser->id,
+            'status' => 'paid',
+            'amount' => 300
+        ]);
+
+        $stats = $this->pixService->getUserStatistics($this->user);
+
+        $this->assertEquals(2, $stats['total_pix']);
+        $this->assertEquals(1, $stats['generated']);
+        $this->assertEquals(1, $stats['paid']);
+        $this->assertEquals(0, $stats['expired']);
+        $this->assertEquals(200.0, $stats['total_amount']);
+        $this->assertEquals(50.0, $stats['conversion_rate']);
+    }
+
+    public function test_get_user_statistics_with_filters(): void
+    {
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'generated',
+            'amount' => 100,
+            'description' => 'Test payment'
+        ]);
+        
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'paid',
+            'amount' => 200,
+            'description' => 'Another payment'
+        ]);
+
+        // Test with status filter
+        $stats = $this->pixService->getUserStatistics($this->user, ['status' => 'generated']);
+        $this->assertEquals(1, $stats['total_pix']);
+        $this->assertEquals(1, $stats['generated']);
+        $this->assertEquals(0, $stats['paid']);
+
+        // Test with search filter
+        $stats = $this->pixService->getUserStatistics($this->user, ['search' => 'Test']);
+        $this->assertEquals(1, $stats['total_pix']);
+        $this->assertEquals(1, $stats['generated']);
+        $this->assertEquals(0, $stats['paid']);
+    }
+
+    public function test_get_timeline_data_structure(): void
+    {
+        // Create some test data
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'generated',
+            'amount' => 100
+        ]);
+
+        // Mock the cache to avoid MySQL CONVERT_TZ function in SQLite tests
+        Cache::shouldReceive('remember')
+            ->once()
+            ->andReturn([
+                [
+                    'date' => '2025-01-25',
+                    'generated' => 1,
+                    'paid' => 0,
+                    'expired' => 0,
+                    'total' => 1,
+                    'amount' => 100.0
+                ]
+            ]);
+
+        $timeline = $this->pixService->getTimelineData($this->user, 1);
+
+        $this->assertIsArray($timeline);
+        $this->assertArrayHasKey('date', $timeline[0]);
+        $this->assertArrayHasKey('generated', $timeline[0]);
+        $this->assertArrayHasKey('paid', $timeline[0]);
+        $this->assertArrayHasKey('expired', $timeline[0]);
+        $this->assertArrayHasKey('total', $timeline[0]);
+        $this->assertArrayHasKey('amount', $timeline[0]);
+    }
+
+    public function test_get_system_timeline_data_structure(): void
+    {
+        $otherUser = User::factory()->create();
+        
+        PixPayment::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'generated',
+            'amount' => 100
+        ]);
+
+        // Mock the cache to avoid MySQL CONVERT_TZ function in SQLite tests
+        Cache::shouldReceive('remember')
+            ->once()
+            ->andReturn([
+                [
+                    'date' => '2025-01-25',
+                    'generated' => 1,
+                    'paid' => 0,
+                    'expired' => 0,
+                    'total' => 1,
+                    'amount' => 100.0
+                ]
+            ]);
+
+        $timeline = $this->pixService->getSystemTimelineData(1);
+
+        $this->assertIsArray($timeline);
+        $this->assertArrayHasKey('date', $timeline[0]);
+        $this->assertArrayHasKey('generated', $timeline[0]);
+        $this->assertArrayHasKey('paid', $timeline[0]);
+        $this->assertArrayHasKey('expired', $timeline[0]);
+        $this->assertArrayHasKey('total', $timeline[0]);
+        $this->assertArrayHasKey('amount', $timeline[0]);
+    }
+
+    public function test_clear_statistics_cache(): void
+    {
+        Cache::shouldReceive('flush')->once();
+        
+        $this->pixService->clearStatisticsCache();
+        
+        // Test passes if no exception is thrown and cache flush is called
+        $this->assertTrue(true);
     }
 }

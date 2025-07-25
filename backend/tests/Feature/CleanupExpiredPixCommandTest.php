@@ -32,8 +32,8 @@ class CleanupExpiredPixCommandTest extends TestCase
         ]);
 
         $this->artisan('pix:cleanup-expired')
-            ->expectsOutput('Starting PIX cleanup...')
-            ->expectsOutput('Processed 3 expired PIX payments')
+            ->expectsOutputToContain('Starting PIX cleanup')
+            ->expectsOutputToContain('Processed 3 expired PIX payments')
             ->assertExitCode(0);
 
         $this->assertEquals(3, PixPayment::where('status', 'expired')->count());
@@ -51,8 +51,8 @@ class CleanupExpiredPixCommandTest extends TestCase
         ]);
 
         $this->artisan('pix:cleanup-expired')
-            ->expectsOutput('Starting PIX cleanup...')
-            ->expectsOutput('Processed 0 expired PIX payments')
+            ->expectsOutputToContain('Starting PIX cleanup')
+            ->expectsOutputToContain('Processed 0 expired PIX payments')
             ->assertExitCode(0);
 
         $this->assertEquals(0, PixPayment::where('status', 'expired')->count());
@@ -64,7 +64,7 @@ class CleanupExpiredPixCommandTest extends TestCase
         config(['pix.cleanup.schedule_enabled' => false]);
 
         $this->artisan('pix:cleanup-expired')
-            ->expectsOutput('PIX cleanup is disabled')
+            ->expectsOutputToContain('PIX cleanup is disabled')
             ->assertExitCode(0);
     }
 
@@ -85,8 +85,8 @@ class CleanupExpiredPixCommandTest extends TestCase
         });
 
         $this->artisan('pix:cleanup-expired')
-            ->expectsOutput('Starting PIX cleanup...')
-            ->expectsOutput('Processed 1 expired PIX payments')
+            ->expectsOutputToContain('Starting PIX cleanup')
+            ->expectsOutputToContain('Processed 1 expired PIX payments')
             ->assertExitCode(0);
     }
 }

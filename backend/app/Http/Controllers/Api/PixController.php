@@ -160,6 +160,27 @@ class PixController extends Controller
     }
 
     /**
+     * Get user's PIX statistics
+     */
+    public function statistics(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $statistics = $user->getPixStatistics();
+
+            return response()->json([
+                'success' => true,
+                'data' => $statistics
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao obter estatísticas'
+            ], 500);
+        }
+    }
+
+    /**
      * Display QR Code image for PIX
      */
     public function qrcode(string $token): Response

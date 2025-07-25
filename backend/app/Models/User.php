@@ -61,11 +61,11 @@ class User extends Authenticatable
         $stats = $this->pixPayments()
             ->selectRaw('
                 COUNT(*) as total,
-                SUM(CASE WHEN status = "generated" THEN 1 ELSE 0 END) as generated,
-                SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid,
-                SUM(CASE WHEN status = "expired" THEN 1 ELSE 0 END) as expired,
-                SUM(CASE WHEN status = "paid" THEN amount ELSE 0 END) as total_paid
-            ')
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as `generated`,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as paid,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as expired,
+                SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as total_paid
+            ', ['generated', 'paid', 'expired', 'paid'])
             ->first();
 
         return [

@@ -103,6 +103,23 @@ class PixService
 
         try {
             return DB::transaction(function () use ($pixPayment) {
+                if ($pixPayment->isExpired()) {
+                    $pixPayment->markAsExpired();
+                    
+                    Log::info('PIX payment expired during confirmation', [
+                        'pix_id' => $pixPayment->id,
+                    ]);
+
+                    $this->clearStatisticsCache();
+
+                    return [
+                        'success' => false,
+                        'message' => 'PIX expirado',
+                        'status' => 'expired',
+                        'pix' => $pixPayment->toApiResponse()
+                    ];
+                }
+                
                 $success = $pixPayment->markAsPaid();
     
                 if ($success) {

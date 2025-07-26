@@ -92,7 +92,7 @@ class PixConfirmationTest extends TestCase
     {
         $pixPayment = $this->pixService->generatePixPayment($this->user, 25.00);
 
-        $response = $this->postJson("/api/pix/confirm/{$pixPayment->token}");
+        $response = $this->postJson("/api/pix/{$pixPayment->token}");
 
         $response->assertStatus(200)
                  ->assertJson([
@@ -111,7 +111,7 @@ class PixConfirmationTest extends TestCase
         $anotherUser = User::factory()->create();
         $pixPayment = $this->pixService->generatePixPayment($anotherUser, 50.00);
 
-        $response = $this->postJson("/api/pix/confirm/{$pixPayment->token}");
+        $response = $this->postJson("/api/pix/{$pixPayment->token}");
 
         $response->assertStatus(200)
                  ->assertJson([
@@ -127,7 +127,7 @@ class PixConfirmationTest extends TestCase
 
     public function test_it_returns_not_found_for_invalid_token_on_confirmation_route()
     {
-        $response = $this->postJson("/api/pix/confirm/invalid-token");
+        $response = $this->postJson("/api/pix/invalid-token");
 
         $response->assertStatus(404);
     }

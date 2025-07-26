@@ -92,7 +92,7 @@ describe('Service: pixService', () => {
     };
     mockedApi.post.mockResolvedValue({ data: confirmResponse });
     const result = await pixService.confirm('test-token');
-    expect(mockedApi.post).toHaveBeenCalledWith('/pix/confirm/test-token');
+    expect(mockedApi.post).toHaveBeenCalledWith('/pix/test-token');
     expect(result).toEqual(confirmResponse);
   });
 

@@ -13,6 +13,7 @@ import type { PixFilters } from '@/features/dashboard/types';
 interface PixState {
   pixList: PixPayment[];
   loading: boolean;
+  refreshing: boolean;
   error: string | null;
   statistics: PixStatistics | null;
   pagination: {
@@ -26,6 +27,7 @@ interface PixState {
 
 type PixAction =
   | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_REFRESHING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_PIX_LIST'; payload: PaginatedResponse<PixPayment> }
   | { type: 'SET_STATISTICS'; payload: PixStatistics }
@@ -47,6 +49,7 @@ interface PixContextType extends PixState {
 const initialState: PixState = {
   pixList: [],
   loading: false,
+  refreshing: false,
   error: null,
   statistics: null,
   pagination: null,
@@ -67,8 +70,16 @@ function pixReducer(state: PixState, action: PixAction): PixState {
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
 
+    case 'SET_REFRESHING':
+      return { ...state, refreshing: action.payload };
+
     case 'SET_ERROR':
-      return { ...state, error: action.payload, loading: false };
+      return {
+        ...state,
+        error: action.payload,
+        loading: false,
+        refreshing: false,
+      };
 
     case 'SET_FILTERS':
       return {
@@ -262,10 +273,15 @@ export function PixProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshPixList = useCallback(async () => {
-    if (state.pagination) {
-      await fetchPixList(state.pagination.currentPage);
-    } else {
-      await fetchPixList(1);
+    dispatch({ type: 'SET_REFRESHING', payload: true });
+    try {
+      if (state.pagination) {
+        await fetchPixList(state.pagination.currentPage);
+      } else {
+        await fetchPixList(1);
+      }
+    } finally {
+      dispatch({ type: 'SET_REFRESHING', payload: false });
     }
   }, [fetchPixList, state.pagination]);
 

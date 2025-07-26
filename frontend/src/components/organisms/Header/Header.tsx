@@ -57,7 +57,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <Link to="/" className="text-xl font-bold text-blue-600">
+            <Link to="/" className="text-xl font-bold text-blue-600 lg:hidden">
               PIX System
             </Link>
           </div>
@@ -93,7 +93,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
                   <button
                     data-testid="user-menu-button"
                     onClick={toggleUserMenu}
-                    className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors cursor-pointer"
                   >
                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
                       {user?.name?.charAt(0).toUpperCase()}

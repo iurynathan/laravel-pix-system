@@ -10,7 +10,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-Route::post('/pix/confirm/{token}', [PixController::class, 'confirm'])
+Route::post('/pix/{token}', [PixController::class, 'confirm'])
     ->middleware('pix.rate_limit:confirm')
     ->name('api.pix.confirm');
 

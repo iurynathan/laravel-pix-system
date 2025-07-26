@@ -108,7 +108,7 @@ class QrCodeServiceTest extends TestCase
             'merchant_name' => 'Test Store',
             'merchant_city' => 'São Paulo',
             'merchant_account' => [
-                'url' => 'https://example.com/pix/confirm/token123'
+                'url' => 'https://example.com/pix/token123'
             ]
         ]);
 
@@ -118,7 +118,7 @@ class QrCodeServiceTest extends TestCase
         $this->assertEquals('Payment for services', $info['description']);
         $this->assertEquals('Test Store', $info['merchant_name']);
         $this->assertEquals('São Paulo', $info['merchant_city']);
-        $this->assertEquals('https://example.com/pix/confirm/token123', $info['url']);
+        $this->assertEquals('https://example.com/pix/token123', $info['url']);
     }
 
     public function test_extract_pix_info_with_missing_fields(): void

@@ -1,10 +1,16 @@
-.PHONY: help setup up down restart logs shell db test fresh seed clear cache
+.PHONY: help setup up down restart logs shell db test fresh seed clear cache test-coverage-xml test-coverage-html coverage-open frontend-install frontend-dev frontend-build frontend-test frontend-test-coverage frontend-lint frontend-format coverage-front-open
 
-# 🎯 Default target
 help:
-	@echo "🚀 Laravel PIX System - Docker Commands"
+	@echo "🚀 Laravel PIX System - Commands"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo "🐳 Backend (Docker) Commands:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -v "frontend\|coverage" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🎨 Frontend Commands:"
+	@grep -E '^frontend[a-zA-Z_-]*:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[33m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "📊 Coverage Commands:"
+	@grep -E '^coverage[a-zA-Z_-]*:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[32m%-20s\033[0m %s\n", $$1, $$2}'
 
 setup:
 	@echo "🏗️ Setting up Laravel PIX System..."
@@ -81,6 +87,32 @@ test-unit:
 test-coverage:
 	docker-compose exec app php artisan test --coverage
 
+test-coverage-xml:
+	docker-compose exec app php artisan test --env=testing --coverage-clover ./coverage.xml
+	@echo "Coverage XML gerado em: backend/coverage.xml"
+
+test-coverage-html:
+	docker-compose exec app php artisan test --env=testing --coverage-html ./coverage-html
+	@echo "Coverage HTML gerado em: backend/coverage-html/index.html"
+
+coverage-open:
+	@if command -v xdg-open > /dev/null; then \
+		xdg-open backend/coverage-html/index.html; \
+	elif command -v open > /dev/null; then \
+		open backend/coverage-html/index.html; \
+	else \
+		echo "Abra manualmente: backend/coverage-html/index.html"; \
+	fi
+
+coverage-front-open:
+	@if command -v xdg-open > /dev/null; then \
+		xdg-open frontend/coverage/index.html; \
+	elif command -v open > /dev/null; then \
+		open frontend/coverage/index.html; \
+	else \
+		echo "Abra manualmente: frontend/coverage/index.html"; \
+	fi
+
 clear:
 	docker-compose exec app php artisan cache:clear
 	docker-compose exec app php artisan config:clear
@@ -127,3 +159,40 @@ stats:
 
 ps:
 	docker-compose ps
+
+# 🎨 Frontend Commands
+frontend-install:
+	cd frontend && npm ci
+
+frontend-dev:
+	cd frontend && npm run dev
+
+frontend-build:
+	cd frontend && npm run build
+
+frontend-test:
+	cd frontend && npm run test
+
+frontend-test-coverage:
+	cd frontend && npm run test:coverage -- --run
+
+frontend-lint:
+	cd frontend && npm run lint
+
+frontend-lint-fix:
+	cd frontend && npm run lint:fix
+
+frontend-format:
+	cd frontend && npm run format
+
+frontend-format-check:
+	cd frontend && npm run format:check
+
+frontend-type-check:
+	cd frontend && npm run type-check
+
+coverage-frontend: frontend-test-coverage coverage-front-open
+
+coverage-backend: test-coverage-html coverage-open
+
+coverage-all: coverage-backend coverage-frontend

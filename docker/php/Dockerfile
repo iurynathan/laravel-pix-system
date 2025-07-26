@@ -25,6 +25,8 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 RUN pecl install redis && docker-php-ext-enable redis
 
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 RUN useradd -G www-data,root -u 1000 -d /home/laravel laravel
@@ -35,7 +37,13 @@ WORKDIR /var/www
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
+# Script para iniciar tanto o servidor quanto php-fpm se necessário
+COPY docker/php/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
+EXPOSE 8000
+
+# Manter como root para permitir cron, mas Laravel roda como usuário laravel
 USER laravel
 
-EXPOSE 9000
-CMD ["php-fpm"]
+CMD ["/usr/local/bin/start.sh"]

@@ -97,42 +97,32 @@ Para pagar, acesse: ${qrCodeUrl}`;
 
     setConfirmingPayment(true);
 
-    try {
-      const result = await pixService.confirm(pix.token);
+    const result = await pixService.confirm(pix.token);
 
-      if (result.success) {
-        await refetch();
-        toast.success('Pagamento confirmado com sucesso!', {
-          duration: 4000,
-          icon: '✅',
-        });
-      } else {
-        if (result.status === 'expired') {
-          toast.error('PIX expirado', {
-            duration: 4000,
-            icon: '⏰',
-          });
-        } else if (result.status === 'already_paid') {
-          toast('PIX já foi pago anteriormente', {
-            duration: 4000,
-            icon: 'ℹ️',
-          });
-        } else {
-          toast.error(`Erro ao confirmar pagamento: ${result.message}`, {
-            duration: 5000,
-            icon: '❌',
-          });
-        }
-      }
-    } catch (error: any) {
-      console.error('Erro ao confirmar pagamento:', error);
-      toast.error('Erro ao confirmar pagamento. Tente novamente.', {
+    if (result.success) {
+      toast.success('Pagamento confirmado com sucesso!', {
+        duration: 4000,
+        icon: '✅',
+      });
+    } else if (result.status === 'expired') {
+      toast.error('PIX expirado', {
+        duration: 4000,
+        icon: '⏰',
+      });
+    } else if (result.status === 'already_paid') {
+      toast('PIX já foi pago anteriormente', {
+        duration: 4000,
+        icon: 'ℹ️',
+      });
+    } else {
+      toast.error(`Erro ao confirmar pagamento: ${result.message}`, {
         duration: 5000,
         icon: '❌',
       });
-    } finally {
-      setConfirmingPayment(false);
     }
+
+    setConfirmingPayment(false);
+    await refetch();
   };
 
   const renderDetailItem = (

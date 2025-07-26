@@ -4,6 +4,7 @@ import { Button } from '@/components/atoms';
 import { Card } from '@/components/molecules';
 import { pixService } from '@/services/pix';
 import { formatPixToken } from '@/utils/formatters';
+import { usePixContext } from '@/context/PixContext';
 import type { PixPayment } from '@/types/pix';
 
 interface PixConfirmationResponse {
@@ -29,6 +30,7 @@ export function PixConfirmation({
     null
   );
   const [initialLoad, setInitialLoad] = useState(true);
+  const { refreshPixList, fetchStatistics } = usePixContext();
 
   const isValidToken = token && token.trim().length > 0;
 
@@ -50,6 +52,14 @@ export function PixConfirmation({
     try {
       const result = await pixService.confirm(token);
       setResponse(result);
+
+      // Atualizar lista e estatísticas após qualquer mudança de status
+      if (result.pix) {
+        await Promise.all([
+          refreshPixList().catch(() => {}), // Não falhar se der erro
+          fetchStatistics().catch(() => {}), // Não falhar se der erro
+        ]);
+      }
 
       if (result.success && result.pix) {
         onSuccess?.(result.pix);

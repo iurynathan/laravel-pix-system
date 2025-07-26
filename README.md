@@ -250,3 +250,39 @@ Execute estes comandos na pasta `frontend`.
     ```bash
     npm run format:check
     npm run format
+    ```
+
+### Comandos de Backend (Artisan)
+
+#### Limpeza de PIX Expirados (Agendado)
+
+O sistema possui uma tarefa agendada para limpar automaticamente cobranças PIX que já expiraram.
+
+-   **Comando**: `php artisan pix:cleanup-expired`
+-   **Agendamento**: A tarefa é executada **por minuto**. A configuração pode ser encontrada em `backend/routes/console.php`.
+-   **Execução Via Docker**: Para executar a limpeza manualmente, use o Docker:
+    ```bash
+    docker-compose exec app php artisan pix:cleanup-expired
+    ```
+
+#### Geração de Dados de Teste
+
+Para popular o ambiente de desenvolvimento com dados de teste realistas para o dashboard, utilize o seguinte comando:
+
+-   **Comando**: `php artisan pix:generate-test-data`
+-   **Descrição**: Gera um número configurável de pagamentos PIX, distribuídos ao longo de um período de dias, associados ao usuário administrador.
+-   **Uso Básico**:
+    ```bash
+    # Gera 300 PIX distribuídos em 30 dias
+    docker-compose exec app php artisan pix:generate-test-data
+    ```
+-   **Parâmetros e Opções**:
+    -   `count`: Define o número de registros a serem criados (ex: `1000`).
+    -   `days`: Define o período em dias para distribuir os registros (ex: `90`).
+    -   `--fresh`: Limpa a tabela `pix_payments` antes de inserir os novos dados.
+    -   `--fresh-user`: Limpa as tabelas `pix_payments` e `users` (CUIDADO: apaga todos os usuários).
+-   **Exemplo Avançado**:
+    ```bash
+    # Gera 1000 PIX distribuídos nos últimos 90 dias, limpando dados antigos
+    docker-compose exec app php artisan pix:generate-test-data 1000 90 --fresh
+    ```

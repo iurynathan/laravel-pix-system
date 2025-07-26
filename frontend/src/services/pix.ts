@@ -76,8 +76,22 @@ export const pixService = {
     status: 'paid' | 'already_paid' | 'expired' | 'not_found' | 'error';
     pix?: PixPayment;
   }> => {
-    const response = await api.post(`/pix/confirm/${token}`);
-    return response.data;
+    try {
+      const response = await api.post(`/pix/${token}`);
+      return response.data;
+    } catch (error: any) {
+      // Tratar diferentes status codes de erro
+      if (error.response?.data) {
+        return error.response.data;
+      }
+
+      // Fallback para erro genérico
+      return {
+        success: false,
+        message: 'Erro ao confirmar pagamento',
+        status: 'error',
+      };
+    }
   },
 
   statistics: async (filters?: Partial<PixFilters>): Promise<PixStatistics> => {

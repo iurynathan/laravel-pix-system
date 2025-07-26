@@ -1,12 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { PixConfirmation } from './PixConfirmation';
+import { PixProvider } from '@/context/PixContext';
 import { pixService } from '@/services/pix';
 import type { PixPayment } from '@/types';
 
 vi.mock('@/services/pix', () => ({
   pixService: {
     confirm: vi.fn(),
+    list: vi.fn().mockResolvedValue({
+      data: [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 15,
+        total: 0,
+      },
+    }),
+    statistics: vi.fn().mockResolvedValue({
+      total_pix: 0,
+      generated: 0,
+      paid: 0,
+      expired: 0,
+      total_amount: 0,
+      conversion_rate: 0,
+    }),
   },
 }));
 
@@ -15,6 +33,11 @@ const mockOnSuccess = vi.fn();
 const mockOnError = vi.fn();
 
 const validToken = 'abc123def456';
+
+// Helper para renderizar com PixProvider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<PixProvider>{component}</PixProvider>);
+};
 
 describe('PixConfirmation', () => {
   beforeEach(() => {
@@ -45,7 +68,7 @@ describe('PixConfirmation', () => {
       },
     });
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}
@@ -80,7 +103,7 @@ describe('PixConfirmation', () => {
 
     mockPixService.confirm.mockResolvedValue(mockResponse);
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}
@@ -116,7 +139,7 @@ describe('PixConfirmation', () => {
 
     mockPixService.confirm.mockResolvedValue(mockResponse);
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}
@@ -136,7 +159,7 @@ describe('PixConfirmation', () => {
     const errorMessage = 'Token inválido';
     mockPixService.confirm.mockRejectedValue(new Error(errorMessage));
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}
@@ -162,7 +185,7 @@ describe('PixConfirmation', () => {
     });
     mockPixService.confirm.mockReturnValue(promise);
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}
@@ -192,7 +215,7 @@ describe('PixConfirmation', () => {
   });
 
   it('handles invalid token format', () => {
-    render(
+    renderWithProvider(
       <PixConfirmation
         token=""
         onSuccess={mockOnSuccess}
@@ -218,7 +241,7 @@ describe('PixConfirmation', () => {
     });
     mockPixService.confirm.mockReturnValue(promise);
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}
@@ -259,7 +282,7 @@ describe('PixConfirmation', () => {
 
     mockPixService.confirm.mockResolvedValue(mockResponse);
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}
@@ -297,7 +320,7 @@ describe('PixConfirmation', () => {
 
     mockPixService.confirm.mockResolvedValue(mockResponse);
 
-    render(
+    renderWithProvider(
       <PixConfirmation
         token={validToken}
         onSuccess={mockOnSuccess}

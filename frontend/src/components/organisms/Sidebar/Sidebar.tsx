@@ -71,7 +71,10 @@ export function Sidebar({ isOpen, onClose, user, logout }: SidebarProps) {
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <Link to="/" className="text-xl font-bold text-blue-600">
+            <Link
+              to="/"
+              className="text-xl font-bold text-blue-600 max-lg:hidden"
+            >
               PIX System
             </Link>
             <button

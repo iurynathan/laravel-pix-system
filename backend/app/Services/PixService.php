@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Exception;
 use App\Exceptions\PixPaymentException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class PixService
 {
@@ -32,7 +33,7 @@ class PixService
                     'description' => $description,
                     'status' => 'generated',
                     'expires_at' => Carbon::now()->addMinutes(
-                        config('pix.expiration_minutes', 15)
+                        config('pix.expiration_minutes', 10)
                     )
                 ]);
     
@@ -41,6 +42,8 @@ class PixService
                     'pix_id' => $pixPayment->id,
                     'amount' => $amount
                 ]);
+
+                $this->clearStatisticsCache();
     
                 return $pixPayment;
             });
@@ -79,6 +82,8 @@ class PixService
                 'pix_id' => $pixPayment->id,
             ]);
 
+            $this->clearStatisticsCache();
+
             return [
                 'success' => false,
                 'message' => 'PIX expirado',
@@ -105,6 +110,8 @@ class PixService
                         'pix_id' => $pixPayment->id,
                         'user_id' => $pixPayment->user_id
                     ]);
+
+                    $this->clearStatisticsCache();
         
                     return [
                         'success' => true,
@@ -147,6 +154,8 @@ class PixService
             ]);
     
             Log::info("Processed {$expiredCount} expired PIX payments");
+
+            $this->clearStatisticsCache();
     
             return $expiredCount;
         } catch (Exception $e) {
@@ -158,29 +167,208 @@ class PixService
     }
 
     /**
-     * Generate system-wide PIX statistics
+     * Generate system-wide PIX statistics with Redis cache
+     *
+     * @param array<string, mixed> $filters
+     * @return array<string, mixed>
+     */
+    public function getSystemStatistics(array $filters = []): array
+    {
+        $cacheKey = 'pix_system_statistics_' . md5(serialize($filters));
+        
+        return Cache::remember($cacheKey, 60, function () use ($filters) {
+            $query = PixPayment::query();
+            
+            // Aplicar filtros
+            if (!empty($filters['status'])) {
+                $query->byStatus($filters['status']);
+            }
+            
+            if (!empty($filters['search'])) {
+                $query->search($filters['search']);
+            }
+            
+            $query->byDateRange($filters['start_date'] ?? null, $filters['end_date'] ?? null);
+            $query->byValueRange($filters['min_value'] ?? null, $filters['max_value'] ?? null);
+            
+            $stats = $query->selectRaw('
+                COUNT(*) as total,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as `generated`,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as paid,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as expired,
+                SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as total_amount
+            ', ['generated', 'paid', 'expired', 'paid'])->first();
+
+            return [
+                'total_pix' => (int) ($stats->total ?? 0),
+                'generated' => (int) ($stats->generated ?? 0),
+                'paid' => (int) ($stats->paid ?? 0),
+                'expired' => (int) ($stats->expired ?? 0),
+                'total_amount' => (float) ($stats->total_amount ?? 0),
+                'conversion_rate' => $stats->total > 0 
+                    ? round(($stats->paid / $stats->total) * 100, 2) 
+                    : 0
+            ];
+        });
+    }
+
+    /**
+     * Get user-specific PIX statistics with cache
+     *
+     * @param array<string, mixed> $filters
+     * @return array<string, mixed>
+     */
+    public function getUserStatistics(User $user, array $filters = []): array
+    {
+        $cacheKey = "pix_user_statistics_{$user->id}_" . md5(serialize($filters));
+        
+        return Cache::remember($cacheKey, 60, function () use ($user, $filters) {
+            $query = $user->pixPayments();
+            
+            // Aplicar filtros
+            if (!empty($filters['status'])) {
+                $query->byStatus($filters['status']);
+            }
+            
+            if (!empty($filters['search'])) {
+                $query->search($filters['search']);
+            }
+            
+            $query->byDateRange($filters['start_date'] ?? null, $filters['end_date'] ?? null);
+            $query->byValueRange($filters['min_value'] ?? null, $filters['max_value'] ?? null);
+            
+            $stats = $query->selectRaw('
+                COUNT(*) as total,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as `generated`,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as paid,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as expired,
+                SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as total_amount
+            ', ['generated', 'paid', 'expired', 'paid'])
+            ->first();
+
+            return [
+                'total_pix' => (int) ($stats->total ?? 0),
+                'generated' => (int) ($stats->generated ?? 0),
+                'paid' => (int) ($stats->paid ?? 0),
+                'expired' => (int) ($stats->expired ?? 0),
+                'total_amount' => (float) ($stats->total_amount ?? 0),
+                'conversion_rate' => $stats->total > 0 
+                    ? round(($stats->paid / $stats->total) * 100, 2) 
+                    : 0
+            ];
+        });
+    }
+
+    /**
+     * Get timeline data for charts
      *
      * @return array<string, mixed>
      */
-    public function getSystemStatistics(): array
+    public function getTimelineData(User $user, int $days = 30): array
     {
-        $stats = PixPayment::selectRaw('
-            COUNT(*) as total,
-            SUM(CASE WHEN status = "generated" THEN 1 ELSE 0 END) as generated,
-            SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid,
-            SUM(CASE WHEN status = "expired" THEN 1 ELSE 0 END) as expired,
-            SUM(CASE WHEN status = "paid" THEN amount ELSE 0 END) as total_amount
-        ')->first();
+        $cacheKey = "pix_timeline_{$user->id}_{$days}";
+        
+        return Cache::remember($cacheKey, 300, function () use ($user, $days) {
+            // Usar fuso horário de São Paulo para cálculos
+            $timezone = 'America/Sao_Paulo';
+            $startDate = Carbon::now($timezone)->subDays($days - 1)->startOfDay()->utc();
+            $endDate = Carbon::now($timezone)->endOfDay()->utc();
+            
+            // Query otimizada usando agregação SQL
+            $timelineData = $user->pixPayments()
+                ->selectRaw("
+                    DATE(CONVERT_TZ(created_at, 'UTC', 'America/Sao_Paulo')) as date,
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN status = ? THEN 1 END) as `generated`,
+                    COUNT(CASE WHEN status = ? THEN 1 END) as paid,
+                    COUNT(CASE WHEN status = ? THEN 1 END) as expired,
+                    COALESCE(SUM(CASE WHEN status = ? THEN amount ELSE 0 END), 0) as amount
+                ", ['generated', 'paid', 'expired', 'paid'])
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupByRaw("DATE(CONVERT_TZ(created_at, 'UTC', 'America/Sao_Paulo'))")
+                ->orderBy('date')
+                ->get()
+                ->keyBy('date');
+            
+            // Gerar timeline completo (incluindo dias sem dados)
+            $timeline = [];
+            for ($i = 0; $i < $days; $i++) {
+                $date = Carbon::now($timezone)->subDays($days - 1 - $i);
+                $dateStr = $date->format('Y-m-d');
+                
+                $dayData = $timelineData->get($dateStr);
+                $timeline[] = [
+                    'date' => $dateStr,
+                    'generated' => $dayData ? (int) $dayData->generated : 0,
+                    'paid' => $dayData ? (int) $dayData->paid : 0,
+                    'expired' => $dayData ? (int) $dayData->expired : 0,
+                    'total' => $dayData ? (int) $dayData->total : 0,
+                    'amount' => $dayData ? (float) $dayData->amount : 0.0,
+                ];
+            }
+            
+            return $timeline;
+        });
+    }
 
-        return [
-            'total_pix' => $stats->total ?? 0,
-            'generated' => $stats->generated ?? 0,
-            'paid' => $stats->paid ?? 0,
-            'expired' => $stats->expired ?? 0,
-            'total_amount' => number_format($stats->total_amount ?? 0, 2, ',', '.'),
-            'conversion_rate' => $stats->total > 0 
-                ? round(($stats->paid / $stats->total) * 100, 2) 
-                : 0
-        ];
+    /**
+     * Get system-wide timeline data for admin users
+     *
+     * @return array<string, mixed>
+     */
+    public function getSystemTimelineData(int $days = 30): array
+    {
+        $cacheKey = "pix_system_timeline_{$days}";
+        
+        return Cache::remember($cacheKey, 300, function () use ($days) {
+            // Usar fuso horário de São Paulo para cálculos
+            $timezone = 'America/Sao_Paulo';
+            $startDate = Carbon::now($timezone)->subDays($days - 1)->startOfDay()->utc();
+            $endDate = Carbon::now($timezone)->endOfDay()->utc();
+            
+            // Query otimizada usando agregação SQL para todo o sistema
+            $timelineData = PixPayment::selectRaw("
+                    DATE(CONVERT_TZ(created_at, 'UTC', 'America/Sao_Paulo')) as date,
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN status = ? THEN 1 END) as `generated`,
+                    COUNT(CASE WHEN status = ? THEN 1 END) as paid,
+                    COUNT(CASE WHEN status = ? THEN 1 END) as expired,
+                    COALESCE(SUM(CASE WHEN status = ? THEN amount ELSE 0 END), 0) as amount
+                ", ['generated', 'paid', 'expired', 'paid'])
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupByRaw("DATE(CONVERT_TZ(created_at, 'UTC', 'America/Sao_Paulo'))")
+                ->orderBy('date')
+                ->get()
+                ->keyBy('date');
+            
+            // Gerar timeline completo (incluindo dias sem dados)
+            $timeline = [];
+            for ($i = 0; $i < $days; $i++) {
+                $date = Carbon::now($timezone)->subDays($days - 1 - $i);
+                $dateStr = $date->format('Y-m-d');
+                
+                $dayData = $timelineData->get($dateStr);
+                $timeline[] = [
+                    'date' => $dateStr,
+                    'generated' => $dayData ? (int) $dayData->generated : 0,
+                    'paid' => $dayData ? (int) $dayData->paid : 0,
+                    'expired' => $dayData ? (int) $dayData->expired : 0,
+                    'total' => $dayData ? (int) $dayData->total : 0,
+                    'amount' => $dayData ? (float) $dayData->amount : 0.0,
+                ];
+            }
+            
+            return $timeline;
+        });
+    }
+
+    /**
+     * Clear statistics cache when PIX status changes
+     */
+    public function clearStatisticsCache(): void
+    {
+        // Como as chaves agora incluem hash dos filtros, vamos limpar o cache geral
+        // Uma abordagem mais robusta seria usar tags de cache, mas flush é mais simples
+        Cache::flush();
     }
 }

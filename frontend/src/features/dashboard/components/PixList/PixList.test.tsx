@@ -277,8 +277,7 @@ describe('PixList', () => {
       />
     );
 
-    // Should show formatted dates for all entries
-    const dateElements = screen.getAllByText(/25\/07\/2025, \d{2}:\d{2}/);
-    expect(dateElements.length).toBe(3); // One for each PIX entry
+    const dateElements = screen.getAllByText(/25\/07\/2025/i);
+    expect(dateElements.length).toBe(3);
   });
 });

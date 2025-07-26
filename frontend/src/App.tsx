@@ -12,6 +12,8 @@ import {
   DashboardPage,
   PixGenerationPage,
   PixConfirmationPage,
+  PixDetailPage,
+  CreatePixPage,
 } from './pages';
 
 function App() {
@@ -35,6 +37,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <PixGenerationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pix/create"
+              element={
+                <ProtectedRoute>
+                  <CreatePixPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pix/details/:id"
+              element={
+                <ProtectedRoute>
+                  <PixDetailPage />
                 </ProtectedRoute>
               }
             />

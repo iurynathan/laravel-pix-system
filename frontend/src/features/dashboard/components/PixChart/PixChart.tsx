@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { Card } from '@/components/molecules';
 import type { PixStatistics } from '@/types/pix';
 
@@ -13,12 +14,45 @@ interface PixChartProps {
 }
 
 const statusLabels: Record<string, string> = {
-  generated: 'Gerados',
+  generated: 'Pendentes',
   paid: 'Pagos',
   expired: 'Expirados',
 };
 
-export function PixChart({ data, title = 'Status dos PIX' }: PixChartProps) {
+const PixChart = memo<PixChartProps>(({ data, title = 'Status dos PIX' }) => {
+  const chartData = useMemo<ChartData[]>(() => {
+    if (!data) return [];
+
+    return [
+      {
+        status: 'generated',
+        count: data.generated || 0,
+        color: '#FBBF24', // yellow
+      },
+      {
+        status: 'paid',
+        count: data.paid || 0,
+        color: '#10B981', // green
+      },
+      {
+        status: 'expired',
+        count: data.expired || 0,
+        color: '#EF4444', // red
+      },
+    ].filter(item => item.count > 0);
+  }, [data]);
+
+  const { total, maxCount } = useMemo(() => {
+    const totalCount = chartData.reduce((sum, item) => sum + item.count, 0);
+    const maxValue =
+      chartData.length > 0 ? Math.max(...chartData.map(item => item.count)) : 0;
+
+    return {
+      total: totalCount,
+      maxCount: maxValue,
+    };
+  }, [chartData]);
+
   if (!data) {
     return (
       <Card data-testid="pix-chart">
@@ -28,26 +62,6 @@ export function PixChart({ data, title = 'Status dos PIX' }: PixChartProps) {
     );
   }
 
-  const chartData: ChartData[] = [
-    {
-      status: 'generated',
-      count: data.generated || 0,
-      color: '#6B7280', // gray
-    },
-    {
-      status: 'paid',
-      count: data.paid || 0,
-      color: '#10B981', // green
-    },
-    {
-      status: 'expired',
-      count: data.expired || 0,
-      color: '#EF4444', // red
-    },
-  ].filter(item => item.count > 0);
-
-  const total = chartData.reduce((sum, item) => sum + item.count, 0);
-
   if (chartData.length === 0) {
     return (
       <Card data-testid="pix-chart">
@@ -56,8 +70,6 @@ export function PixChart({ data, title = 'Status dos PIX' }: PixChartProps) {
       </Card>
     );
   }
-
-  const maxCount = Math.max(...chartData.map(item => item.count));
 
   return (
     <Card data-testid="pix-chart">
@@ -110,4 +122,8 @@ export function PixChart({ data, title = 'Status dos PIX' }: PixChartProps) {
       </div>
     </Card>
   );
-}
+});
+
+PixChart.displayName = 'PixChart';
+
+export { PixChart };

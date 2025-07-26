@@ -11,9 +11,10 @@ services:
     volumes:
       - ./backend:/var/www
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./docker/cron/crontab:/etc/cron.d/laravel-cron
+      - ./docker/cron/logs:/var/log/cron
     depends_on:
       - mysql
-      - redis
     networks:
       - laravel-pix-network
 
@@ -33,17 +34,6 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
-    networks:
-      - laravel-pix-network
-
-  redis:
-    image: redis:7-alpine
-    container_name: laravel-pix-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
     networks:
       - laravel-pix-network
 
@@ -79,6 +69,4 @@ networks:
 
 volumes:
   mysql_data:
-    driver: local
-  redis_data:
     driver: local

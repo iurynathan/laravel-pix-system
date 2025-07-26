@@ -26,6 +26,12 @@ class PixPaymentIndexRequest extends FormRequest
         return [
             'status' => 'nullable|string|in:generated,paid,expired',
             'search' => 'nullable|string|max:255',
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+            'min_value' => 'nullable|numeric|min:0',
+            'max_value' => 'nullable|numeric|gte:min_value',
+            'sort_by' => 'nullable|string|in:created_at,amount,status',
+            'sort_direction' => 'nullable|string|in:asc,desc',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
         ];

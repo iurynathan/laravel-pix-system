@@ -6,6 +6,7 @@ namespace App\Services;
 
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
+use Piggly\Pix\StaticPayload;
 
 class QrCodeService
 {
@@ -30,6 +31,14 @@ class QrCodeService
     }
 
     /**
+     * Get company beneficiary data
+     */
+    public function getCompanyData(): array
+    {
+        return config('pix.simulation.company');
+    }
+
+    /**
      * Generate PIX QR Code URL
      */
     public function generateQrCodeUrl(string $pixToken): string
@@ -38,67 +47,167 @@ class QrCodeService
     }
 
     /**
-     * Gera payload PIX fictício
+     * Gera payload PIX no formato BR Code (EMV) usando biblioteca especializada
      */
     private function generatePixPayload(string $pixToken, float $amount, ?string $description = null): string
     {
-        $payload = [
-            'version' => '01',
-            'initiation_method' => '12',
-            'merchant_account' => [
-                'gui' => 'br.gov.bcb.pix',
-                'key' => config('app.name', 'Laravel PIX System'),
-                'url' => route('api.pix.confirm', ['token' => $pixToken])
-            ],
-            'merchant_category' => '0000',
-            'transaction_currency' => '986',
-            'transaction_amount' => number_format($amount, 2, '.', ''),
-            'country_code' => 'BR',
-            'merchant_name' => config('app.name', 'Laravel PIX System'),
-            'merchant_city' => 'São Paulo',
-            'additional_info' => $description ?? 'Pagamento PIX'
-        ];
-
-        return json_encode($payload);
+        $companyData = $this->getCompanyData();
+        
+        // Criar o payload PIX usando a biblioteca Piggly
+        $payload = new StaticPayload();
+        
+        // Configurar chave PIX (usando document para CNPJ - adequado para simulação)
+        $payload->setPixKey('document', $companyData['pix_key']['value']);
+        
+        // Configurar merchant
+        $payload->setMerchantName($companyData['trade_name']);
+        $payload->setMerchantCity($companyData['address']['city']);
+        
+        // Configurar valor se fornecido
+        if ($amount > 0) {
+            $payload->setAmount($amount);
+        }
+        
+        // Adicionar descrição se fornecida
+        if ($description) {
+            $payload->setDescription($description);
+        }
+        
+        // Adicionar TID para rastreamento
+        $payload->setTid(substr(str_replace('-', '', $pixToken), 0, 25));
+        
+        // Gerar o código PIX
+        return $payload->getPixCode();
     }
 
     /**
-     * Validate PIX QR Code
+     * Formatar campo TLV (Tag-Length-Value)
+     */
+    private function formatTLV(string $tag, string $value): string
+    {
+        $length = str_pad((string)strlen($value), 2, '0', STR_PAD_LEFT);
+        return $tag . $length . $value;
+    }
+
+    /**
+     * Normalizar texto removendo acentos e caracteres especiais
+     */
+    private function normalizeText(string $text): string
+    {
+        $text = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        $text = preg_replace('/[^A-Za-z0-9\s\-\.]/', '', $text);
+        return trim($text);
+    }
+
+    /**
+     * Calcular CRC16 para BR Code (CCITT-FFFF)
+     */
+    private function calculateCRC16(string $data): string
+    {
+        $polynomial = 0x1021;
+        $crc = 0xFFFF;
+        
+        for ($i = 0; $i < strlen($data); $i++) {
+            $crc ^= (ord($data[$i]) << 8);
+            
+            for ($j = 0; $j < 8; $j++) {
+                if ($crc & 0x8000) {
+                    $crc = (($crc << 1) ^ $polynomial) & 0xFFFF;
+                } else {
+                    $crc = ($crc << 1) & 0xFFFF;
+                }
+            }
+        }
+        
+        return sprintf('%04X', $crc);
+    }
+
+    /**
+     * Validate PIX QR Code (BR Code format)
      */
     public function validatePixQrCode(string $qrCodeData): bool
     {
         try {
-            $data = json_decode($qrCodeData, true);
+            // Verificações básicas do formato BR Code
+            if (strlen($qrCodeData) < 10) {
+                return false;
+            }
             
-            return isset($data['version']) && 
-                   isset($data['transaction_currency']) && 
-                   $data['transaction_currency'] === '986' &&
-                   isset($data['country_code']) && 
-                   $data['country_code'] === 'BR';
+            // Verificar se começa com o formato correto (00 + 02 + 01)
+            if (substr($qrCodeData, 0, 6) !== '000201') {
+                return false;
+            }
+            
+            // Verificar se contém informações do PIX (tag 26)
+            if (strpos($qrCodeData, '26') === false) {
+                return false;
+            }
+            
+            // Verificar país (tag 58 + BR)
+            if (strpos($qrCodeData, '5802BR') === false) {
+                return false;
+            }
+            
+            return true;
         } catch (\Exception $e) {
             return false;
         }
     }
 
     /**
-     * Extract PIX information
+     * Extract PIX information (simplified for our needs)
      */
     public function extractPixInfo(string $qrCodeData): array
     {
         try {
             $data = json_decode($qrCodeData, true);
             
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return $this->getDefaultPixInfo();
+            }
+            
             return [
-                'amount' => (float) ($data['transaction_amount'] ?? 0),
+                'amount' => isset($data['transaction_amount']) ? (float) $data['transaction_amount'] : 0.0,
                 'description' => $data['additional_info'] ?? null,
                 'merchant_name' => $data['merchant_name'] ?? null,
+                'merchant_trade_name' => $data['merchant_trade_name'] ?? null,
+                'merchant_cnpj' => $data['merchant_cnpj'] ?? null,
                 'merchant_city' => $data['merchant_city'] ?? null,
-                'url' => $data['merchant_account']['url'] ?? null
+                'merchant_state' => $data['merchant_state'] ?? null,
+                'merchant_institution' => $data['merchant_institution'] ?? null,
+                'merchant_institution_code' => $data['merchant_institution_code'] ?? null,
+                'pix_key_type' => $data['pix_key_type'] ?? null,
+                'pix_key' => $data['pix_key'] ?? null,
+                'url' => $data['merchant_account']['url'] ?? $data['url'] ?? null,
+                'company' => $data['company'] ?? null
             ];
         } catch (\Exception $e) {
-            return [];
+            return $this->getDefaultPixInfo();
         }
     }
+
+    /**
+     * Get default PIX info structure
+     */
+    private function getDefaultPixInfo(): array
+    {
+        return [
+            'amount' => 0.0,
+            'description' => null,
+            'merchant_name' => null,
+            'merchant_trade_name' => null,
+            'merchant_cnpj' => null,
+            'merchant_city' => null,
+            'merchant_state' => null,
+            'merchant_institution' => null,
+            'merchant_institution_code' => null,
+            'pix_key_type' => null,
+            'pix_key' => null,
+            'url' => null,
+            'company' => null
+        ];
+    }
+
 
     /**
      * Generate placeholder QR Code

@@ -22,16 +22,16 @@ class PixPaymentResource extends JsonResource
             'amount' => (float) $this->amount,
             'description' => $this->description,
             'status' => $this->status,
-            'expires_at' => $this->expires_at->toISOString(),
+            'expires_at' => $this->expires_at?->toISOString(),
             'paid_at' => $this->paid_at?->toISOString(),
-            'created_at' => $this->created_at->toISOString(),
-            'updated_at' => $this->updated_at->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
             'qr_code_url' => $this->getQrCodeUrl(),
-            'qr_code_base64' => $this->getQrCodeBase64(),
             'remaining_time' => $this->getRemainingTime(),
             'is_expired' => $this->isExpired(),
             'is_paid' => $this->isPaid(),
             'can_be_paid' => $this->canBePaid(),
+            'company' => $this->getCompanyData(),
         ];
     }
 }

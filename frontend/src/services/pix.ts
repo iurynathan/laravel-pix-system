@@ -1,6 +1,9 @@
 import { api } from './api';
 import type { PixPayment, CreatePixData, PixStatistics } from '@/types/pix';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
+import type { PixFilters } from '@/features/dashboard/types';
+
+const NUMERIC_KEYS = ['min_value', 'max_value'];
 
 export const pixService = {
   create: async (data: CreatePixData): Promise<PixPayment> => {
@@ -9,14 +12,53 @@ export const pixService = {
   },
 
   list: async (
-    page = 1,
-    status?: string
+    filters: Partial<PixFilters> & { page?: number }
   ): Promise<PaginatedResponse<PixPayment>> => {
-    const params = new URLSearchParams({ page: page.toString() });
-    if (status) params.append('status', status);
+    const params = new URLSearchParams();
+
+    const numericValues: Record<string, number> = {};
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== ''
+      ) {
+        let processedValue = String(value);
+
+        if (NUMERIC_KEYS.includes(key)) {
+          processedValue = processedValue.replace(',', '.');
+
+          const numeric = Number(processedValue);
+          if (!isNaN(numeric)) {
+            numericValues[key] = numeric;
+          }
+        }
+
+        (filters[key as keyof typeof filters] as string) = processedValue;
+      }
+    });
+
+    if (
+      numericValues.min_value !== undefined &&
+      numericValues.max_value !== undefined &&
+      numericValues.max_value < numericValues.min_value
+    ) {
+      delete filters.max_value;
+    }
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== ''
+      ) {
+        params.append(key, String(value));
+      }
+    });
 
     const response = await api.get<ApiResponse<PaginatedResponse<PixPayment>>>(
-      `/pix?${params}`
+      `/pix?${params.toString()}`
     );
     return response.data.data;
   },
@@ -38,16 +80,63 @@ export const pixService = {
     return response.data;
   },
 
-  statistics: async (): Promise<PixStatistics> => {
-    const response =
-      await api.get<ApiResponse<PixStatistics>>('/pix/statistics');
+  statistics: async (filters?: Partial<PixFilters>): Promise<PixStatistics> => {
+    const params = new URLSearchParams();
+
+    if (filters) {
+      const numericValues: Record<string, number> = {};
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (
+          value !== null &&
+          value !== undefined &&
+          String(value).trim() !== ''
+        ) {
+          let processedValue = String(value);
+
+          if (NUMERIC_KEYS.includes(key)) {
+            processedValue = processedValue.replace(',', '.');
+
+            const numeric = Number(processedValue);
+            if (!isNaN(numeric)) {
+              numericValues[key] = numeric;
+            }
+          }
+
+          (filters[key as keyof typeof filters] as string) = processedValue;
+        }
+      });
+
+      if (
+        numericValues.min_value !== undefined &&
+        numericValues.max_value !== undefined &&
+        numericValues.max_value < numericValues.min_value
+      ) {
+        delete filters.max_value;
+      }
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (
+          value !== null &&
+          value !== undefined &&
+          String(value).trim() !== ''
+        ) {
+          params.append(key, String(value));
+        }
+      });
+    }
+
+    const url = params.toString()
+      ? `/pix/statistics?${params.toString()}`
+      : '/pix/statistics';
+    const response = await api.get<ApiResponse<PixStatistics>>(url);
     return response.data.data;
   },
 
-  getPixStatistics: async (): Promise<PixStatistics> => {
-    const response =
-      await api.get<ApiResponse<PixStatistics>>('/pix/statistics');
-    return response.data.data;
+  getPixStatistics: async (
+    filters?: Partial<PixFilters>
+  ): Promise<PixStatistics> => {
+    return pixService.statistics(filters);
   },
 
   qrCode: async (token: string): Promise<string> => {
@@ -55,5 +144,32 @@ export const pixService = {
       `/pix/qrcode/${token}`
     );
     return response.data.data.qr_code;
+  },
+
+  getTimeline: async (
+    days = 30
+  ): Promise<
+    Array<{
+      date: string;
+      generated: number;
+      paid: number;
+      expired: number;
+      total: number;
+      amount: number;
+    }>
+  > => {
+    const response = await api.get<
+      ApiResponse<
+        Array<{
+          date: string;
+          generated: number;
+          paid: number;
+          expired: number;
+          total: number;
+          amount: number;
+        }>
+      >
+    >(`/pix/timeline?days=${days}`);
+    return response.data.data;
   },
 };

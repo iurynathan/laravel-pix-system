@@ -4,7 +4,7 @@ import { Card } from '@/components/molecules';
 interface PixStatsCardProps {
   title: string;
   value: number;
-  color: 'blue' | 'green' | 'red' | 'gray';
+  color: 'blue' | 'green' | 'red' | 'yellow';
   icon?: string;
 }
 
@@ -12,14 +12,14 @@ const colorClasses = {
   blue: 'border-blue-200 bg-blue-50',
   green: 'border-green-200 bg-green-50',
   red: 'border-red-200 bg-red-50',
-  gray: 'border-gray-200 bg-gray-50',
+  yellow: 'border-amber-200 bg-amber-50',
 };
 
 const textColorClasses = {
   blue: 'text-blue-600',
   green: 'text-green-600',
   red: 'text-red-600',
-  gray: 'text-gray-600',
+  yellow: 'text-amber-600',
 };
 
 export function PixStatsCard({ title, value, color }: PixStatsCardProps) {

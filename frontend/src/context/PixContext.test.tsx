@@ -74,6 +74,8 @@ describe('PixContext', () => {
     paid: 3,
     expired: 2,
     total_amount: 1500.75,
+    conversion_rate: 30,
+    total_pix: 10,
   };
 
   beforeEach(() => {
@@ -130,7 +132,17 @@ describe('PixContext', () => {
     });
 
     expect(screen.getByTestId('pix-count')).toHaveTextContent('1');
-    expect(mockPixService.list).toHaveBeenCalledWith(1, undefined);
+    expect(mockPixService.list).toHaveBeenCalledWith({
+      page: 1,
+      status: '',
+      search: '',
+      sort_by: 'created_at',
+      sort_direction: 'desc',
+      start_date: '',
+      end_date: '',
+      min_value: '',
+      max_value: '',
+    });
   });
 
   it('should handle PIX list fetch error', async () => {
@@ -362,7 +374,17 @@ describe('PixContext', () => {
     });
 
     // Should refresh list after creation
-    expect(mockPixService.list).toHaveBeenCalledWith(1, undefined);
+    expect(mockPixService.list).toHaveBeenCalledWith({
+      page: 1,
+      status: '',
+      search: '',
+      sort_by: 'created_at',
+      sort_direction: 'desc',
+      start_date: '',
+      end_date: '',
+      min_value: '',
+      max_value: '',
+    });
   });
 
   it('should handle pagination in PIX list', async () => {
@@ -391,6 +413,16 @@ describe('PixContext', () => {
       await userEvent.click(fetchButton);
     });
 
-    expect(mockPixService.list).toHaveBeenCalledWith(1, undefined);
+    expect(mockPixService.list).toHaveBeenCalledWith({
+      page: 1,
+      status: '',
+      search: '',
+      sort_by: 'created_at',
+      sort_direction: 'desc',
+      start_date: '',
+      end_date: '',
+      min_value: '',
+      max_value: '',
+    });
   });
 });

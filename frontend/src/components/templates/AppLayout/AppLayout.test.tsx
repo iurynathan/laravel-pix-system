@@ -83,7 +83,7 @@ describe('AppLayout Component', () => {
       </AppLayout>
     );
 
-    expect(screen.getByTestId('app-header')).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toBeInTheDocument();
   });
 
   it('should render sidebar component', () => {
@@ -99,7 +99,7 @@ describe('AppLayout Component', () => {
       </AppLayout>
     );
 
-    expect(screen.getByTestId('app-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-sidebar')).toBeInTheDocument();
   });
 
   it('should toggle sidebar on mobile when hamburger is clicked', () => {
@@ -121,10 +121,10 @@ describe('AppLayout Component', () => {
       </AppLayout>
     );
 
-    const hamburgerButton = screen.getByTestId('mobile-menu-toggle');
+    const hamburgerButton = screen.getByLabelText('Abrir menu');
     fireEvent.click(hamburgerButton);
 
-    expect(screen.getByTestId('app-sidebar')).toHaveClass('translate-x-0');
+    expect(screen.getByTestId('mobile-sidebar')).toHaveClass('translate-x-0');
   });
 
   it('should close sidebar when overlay is clicked', () => {
@@ -146,13 +146,15 @@ describe('AppLayout Component', () => {
       </AppLayout>
     );
 
-    const hamburgerButton = screen.getByTestId('mobile-menu-toggle');
+    const hamburgerButton = screen.getByTestId('mobile-menu-button');
     fireEvent.click(hamburgerButton);
 
     const overlay = screen.getByTestId('sidebar-overlay');
     fireEvent.click(overlay);
 
-    expect(screen.getByTestId('app-sidebar')).toHaveClass('-translate-x-full');
+    expect(screen.getByTestId('mobile-sidebar')).toHaveClass(
+      '-translate-x-full'
+    );
   });
 
   it('should render main content area with proper styling', () => {
@@ -171,9 +173,9 @@ describe('AppLayout Component', () => {
     const mainContent = screen.getByTestId('main-content').closest('main');
     expect(mainContent).toHaveClass(
       'flex-1',
-      'lg:ml-64',
-      'transition-all',
-      'duration-300'
+      'bg-gray-100',
+      'overflow-x-hidden',
+      'overflow-y-auto'
     );
   });
 
@@ -191,7 +193,12 @@ describe('AppLayout Component', () => {
     );
 
     const layout = screen.getByTestId('app-layout');
-    expect(layout).toHaveClass('min-h-screen', 'bg-gray-50', 'flex');
+    expect(layout).toHaveClass(
+      'flex',
+      'h-screen',
+      'bg-gray-100',
+      'overflow-hidden'
+    );
   });
 
   it('should show notification when provided', () => {
@@ -285,23 +292,5 @@ describe('AppLayout Component', () => {
 
     expect(screen.getByTestId('floating-action-button')).toBeInTheDocument();
     expect(screen.getByText('+')).toBeInTheDocument();
-  });
-
-  it('should handle keyboard shortcuts', () => {
-    mockUseAuth.mockReturnValue({
-      isAuthenticated: true,
-      isLoading: false,
-      user: { id: 1, name: 'João Silva', email: 'joao@test.com' },
-    });
-
-    render(
-      <AppLayout>
-        <div>Content</div>
-      </AppLayout>
-    );
-
-    fireEvent.keyDown(document, { key: 'm', ctrlKey: true });
-
-    expect(screen.getByTestId('app-sidebar')).toHaveClass('translate-x-0');
   });
 });

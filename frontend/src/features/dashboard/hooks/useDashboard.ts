@@ -1,55 +1,102 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { pixService } from '@/services/pix';
-import type { PixStatistics, PixPayment } from '@/types/pix';
+import type { PixStatistics } from '@/types/pix';
+import type { PixFilters } from '@/features/dashboard/types';
 
 interface UseDashboardReturn {
   statistics: PixStatistics | null;
-  pixList: PixPayment[];
   loading: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: (filters?: Partial<PixFilters>) => void;
+  loadStatistics: (
+    filters?: Partial<PixFilters>,
+    showLoading?: boolean
+  ) => Promise<void>;
 }
 
 export function useDashboard(): UseDashboardReturn {
   const [stats, setStats] = useState<PixStatistics | null>(null);
-  const [pixList, setPixList] = useState<PixPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isInitialLoad = useRef(true);
 
-  const loadDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const loadStatistics = useCallback(
+    async (
+      currentFilters?: Partial<PixFilters>,
+      showLoading: boolean = true
+    ) => {
+      try {
+        // Cancelar requisição anterior se existir
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
 
-      const [statsData, pixListResponse] = await Promise.all([
-        pixService.getPixStatistics(),
-        pixService.list(1), // Primeira página
-      ]);
+        // Criar novo AbortController
+        abortControllerRef.current = new AbortController();
 
-      setStats(statsData);
-      setPixList(pixListResponse.data);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Erro ao carregar dados';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        // Só mostrar loading se for carregamento inicial E showLoading for true
+        if (isInitialLoad.current && showLoading) {
+          setLoading(true);
+        }
+
+        setError(null);
+
+        const statsData = await pixService.getPixStatistics(currentFilters);
+
+        // Verificar se a requisição não foi cancelada
+        if (!abortControllerRef.current.signal.aborted) {
+          setStats(statsData);
+          // Sempre marcar como não inicial após primeira carga bem-sucedida
+          if (isInitialLoad.current) {
+            isInitialLoad.current = false;
+            setLoading(false);
+          }
+        }
+      } catch (err) {
+        // Ignorar erros de cancelamento
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+
+        const message =
+          err instanceof Error ? err.message : 'Erro ao carregar estatísticas';
+        setError(message);
+
+        // Sempre parar loading em caso de erro, mesmo que seja inicial
+        if (isInitialLoad.current) {
+          isInitialLoad.current = false;
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    loadStatistics();
 
-  const refresh = useCallback(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    // Cleanup function para cancelar requisições pendentes
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [loadStatistics]);
+
+  const refresh = useCallback(
+    (currentFilters?: Partial<PixFilters>) => {
+      isInitialLoad.current = true;
+      loadStatistics(currentFilters, true);
+    },
+    [loadStatistics]
+  );
 
   return {
     statistics: stats,
-    pixList,
     loading,
     error,
     refresh,
+    loadStatistics,
   };
 }

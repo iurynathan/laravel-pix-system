@@ -35,10 +35,10 @@ export function DashboardPage() {
 
   const [debouncedFilters] = useDebounce(filters, 500);
   const [isInitialRender, setIsInitialRender] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchPixList(1);
-    // Na primeira renderização, mostrar loading. Depois, não mostrar
     loadStatistics(debouncedFilters, isInitialRender);
 
     if (isInitialRender) {
@@ -67,10 +67,13 @@ export function DashboardPage() {
     });
   };
 
-  const handleRefresh = () => {
-    refreshPixList();
-    // No refresh, queremos mostrar loading
-    loadStatistics(filters, true);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refreshPixList(), loadStatistics(filters, false)]);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (statsLoading) {
@@ -113,12 +116,12 @@ export function DashboardPage() {
               variant="outline"
               onClick={handleRefresh}
               className="flex items-center space-x-2"
-              disabled={statsLoading || pixLoading}
+              disabled={isRefreshing}
             >
               <RefreshCw
-                className={`h-4 w-4 ${statsLoading || pixLoading ? 'animate-spin' : ''}`}
+                className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
               />
-              <span>Atualizar</span>
+              <span>{isRefreshing ? 'Atualizando...' : 'Atualizar'}</span>
             </Button>
             <Link to="/pix/create">
               <Button className="bg-green-600 hover:bg-green-700">

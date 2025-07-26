@@ -1,1 +1,0 @@
-export { PixList } from './PixList';

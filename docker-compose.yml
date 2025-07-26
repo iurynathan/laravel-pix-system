@@ -11,8 +11,6 @@ services:
     volumes:
       - ./backend:/var/www
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
-      - ./docker/cron/crontab:/etc/cron.d/laravel-cron
-      - ./docker/cron/logs:/var/log/cron
     depends_on:
       - mysql
     networks:
